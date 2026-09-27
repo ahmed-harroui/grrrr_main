@@ -1,0 +1,6 @@
+# One question per line. `pnpm content generate --count N` takes (and removes) the next N.
+What should I do in the first 30 days with a new puppy?
+How can I give my indoor cat a richer life?
+How much exercise does my dog actually need?
+Why does my cat knock things off the table?
+How do I stop my dog pulling on the lead?

@@ -1,0 +1,59 @@
+# Daily: Claude writes a guide from the oldest question in the Studio queue, saves it to Sanity
+# (as a draft to review, or published if AUTO_PUBLISH is "true"), then posts the Threads thread of
+# every published guide that hasn't been posted yet — including the ones you published by hand.
+#
+# Repo settings → Secrets and variables → Actions:
+#   secrets:   ANTHROPIC_API_KEY, THREADS_ACCESS_TOKEN, SANITY_API_WRITE_TOKEN
+#   variables: NEXT_PUBLIC_SANITY_PROJECT_ID, SITE_URL, AUTO_PUBLISH ("true" or "false"),
+#              NEXT_PUBLIC_SANITY_DATASET (optional, default "production"), THREADS_USER_ID (optional)
+name: Content engine
+
+on:
+  schedule:
+    - cron: '0 8 * * *' # every day at 08:00 UTC
+  workflow_dispatch:
+    inputs:
+      count:
+        description: Number of guides to generate (0 = only post pending threads)
+        default: '1'
+      dry_run:
+        description: Preview the threads without posting
+        type: boolean
+        default: false
+
+concurrency:
+  group: content-engine
+  cancel-in-progress: false
+
+jobs:
+  content:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      THREADS_ACCESS_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
+      SANITY_API_WRITE_TOKEN: ${{ secrets.SANITY_API_WRITE_TOKEN }}
+      NEXT_PUBLIC_SANITY_PROJECT_ID: ${{ vars.NEXT_PUBLIC_SANITY_PROJECT_ID }}
+      NEXT_PUBLIC_SANITY_DATASET: ${{ vars.NEXT_PUBLIC_SANITY_DATASET }}
+      THREADS_USER_ID: ${{ vars.THREADS_USER_ID }}
+      SITE_URL: ${{ vars.SITE_URL }}
+      AUTO_PUBLISH: ${{ vars.AUTO_PUBLISH }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Generate guides
+        if: ${{ (inputs.count || '1') != '0' }}
+        run: pnpm content generate --count ${{ inputs.count || '1' }}
+
+      - name: Post pending threads
+        if: ${{ !cancelled() }}
+        run: pnpm content post ${{ inputs.dry_run && '--dry-run' || '--wait-live' }}
