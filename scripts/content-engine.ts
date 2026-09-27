@@ -42,6 +42,9 @@ async function generate(questions: { text: string; _id?: string }[], publish: bo
 }
 
 async function post(dryRun: boolean, waitLive: boolean) {
+  if (!dryRun && !process.env.THREADS_ACCESS_TOKEN) {
+    return console.log('\nThreads not configured (THREADS_ACCESS_TOKEN is empty) — skipping posting. Threads are kept in Sanity for later.')
+  }
   const guides = await guidesPendingThread()
   if (guides.length === 0) return console.log('\nNothing to post — every published guide already has its thread on Threads.')
   for (const guide of guides) {
