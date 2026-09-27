@@ -2,7 +2,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod'
 import type { z } from 'zod'
 import { REWRITE_MODES, type RewriteMode } from './modes'
-import { CritiqueSchema, GeneratedGuideSchema, RewriteSchema, ThreadSchema, type AiBlock } from './schema'
+import { CATEGORIES, CritiqueSchema, GeneratedGuideSchema, QuestionIdeasSchema, RewriteSchema, ThreadSchema, type AiBlock } from './schema'
 
 const MODEL = 'claude-opus-5'
 
@@ -66,6 +66,19 @@ export function critiqueGuide(draft: Draft) {
     `Here is a draft guide as JSON:\n\n${asJson(draft)}\n\nAct as a demanding editor. Judge it against the Grr voice, clarity, accuracy, usefulness and how interesting it is to read. Give a score out of 10 and specific tips (written in French for the editor, quoting the English passage each tip is about).`,
     'medium',
   )
+}
+
+/** Ideas for the question queue, when it runs empty. */
+export async function suggestQuestions(count: number, covered: string[]) {
+  const { questions } = await ask(
+    QuestionIdeasSchema,
+    `Suggest ${count} new questions that real dog and cat owners genuinely ask (the kind typed into Google or asked at the vet), each worth a full practical guide. Phrase each as the owner would ask it, in English, first person ("my dog…", "my cat…"). Mix dogs and cats, seasons, life stages and these topics: ${CATEGORIES.join(', ')}.
+
+Do not repeat or closely overlap anything already covered:
+${covered.map((t) => `- ${t}`).join('\n') || '(nothing yet)'}`,
+    'medium',
+  )
+  return questions.slice(0, count)
 }
 
 export async function generateThread(draft: Draft) {

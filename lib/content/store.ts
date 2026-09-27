@@ -60,6 +60,14 @@ export async function nextQuestions(count: number): Promise<{ _id: string; text:
   return writeClient().fetch(`*[_type == "question" && ${PUBLISHED} && used != true] | order(_createdAt asc)[0...$count] { _id, text }`, { count })
 }
 
+/** Every question and guide title so far — used to keep new question ideas fresh. */
+export async function coveredTopics(): Promise<string[]> {
+  const { questions, titles } = await writeClient().fetch<{ questions: string[]; titles: string[] }>(
+    `{ "questions": *[_type == "question" && ${PUBLISHED}].text, "titles": *[_type == "guide"].title }`,
+  )
+  return [...new Set([...questions, ...titles].filter(Boolean))]
+}
+
 export async function markQuestionUsed(questionId: string, guideId: string) {
   await writeClient().patch(questionId).set({ used: true, guide: { _type: 'reference', _ref: guideId, _weak: true } }).commit()
 }

@@ -15,11 +15,14 @@ import './load-env'
 import fs from 'node:fs'
 import path from 'node:path'
 import Anthropic from '@anthropic-ai/sdk'
-import { AiDeclinedError, generateGuide } from '../lib/content/ai'
+import { AiDeclinedError, generateGuide, suggestQuestions } from '../lib/content/ai'
 import { key } from '../lib/content/portable-text'
 import { postGuideThread } from '../lib/content/publish'
 import type { AiBlock } from '../lib/content/schema'
-import { addQuestions, existingTitles, guidesPendingThread, markQuestionUsed, nextQuestions, saveGeneratedGuide } from '../lib/content/store'
+import { addQuestions, coveredTopics, existingTitles, guidesPendingThread, markQuestionUsed, nextQuestions, saveGeneratedGuide } from '../lib/content/store'
+
+/** How many new question ideas Claude adds when the queue runs empty (≈ 2 months at one guide a week). */
+const QUEUE_REFILL = 8
 import { aiBlocksToPortable } from '../lib/content/portable-text'
 import { writeClient } from '../lib/sanity/client'
 
@@ -95,8 +98,15 @@ async function main() {
   const positional = args.filter((a, i) => !a.startsWith('--') && !(countIdx >= 0 && i === countIdx + 1))
 
   async function generateFromArgs() {
-    const questions = positional.length ? positional.map((text) => ({ text })) : await nextQuestions(count)
-    if (!questions.length) throw new Error('The question queue is empty — add questions in /studio → « Questions en attente ».')
+    if (positional.length) return generate(positional.map((text) => ({ text })), publish)
+    let questions = await nextQuestions(count)
+    if (questions.length < count) {
+      // Queue running dry: let Claude refill it (visible and editable in the Studio before use).
+      const ideas = await suggestQuestions(QUEUE_REFILL, await coveredTopics())
+      await addQuestions(ideas)
+      console.log(`\n💡 Question queue was empty — added ${ideas.length} new ideas:\n${ideas.map((q) => `   • ${q}`).join('\n')}`)
+      questions = await nextQuestions(count)
+    }
     return generate(questions, publish)
   }
 

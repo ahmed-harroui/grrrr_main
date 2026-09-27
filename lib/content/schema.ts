@@ -36,6 +36,8 @@ export type Critique = z.infer<typeof CritiqueSchema>
 
 export const ThreadSchema = z.object({ thread: z.array(z.string()) })
 
+export const QuestionIdeasSchema = z.object({ questions: z.array(z.string()) })
+
 /** Guide as stored in Sanity. */
 export type ThreadPost = { _key: string; text: string; postId?: string }
 export type Guide = {
