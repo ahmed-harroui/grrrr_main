@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ArrowLeft, ArrowUpRight } from 'lucide-react'
+import { SiteHeader } from '@/components/site-header'
 import { getAllGuides } from '@/lib/content/store'
 
 export const revalidate = 60
@@ -12,6 +13,7 @@ export default async function GuidesPage() {
   const guides = await getAllGuides()
   return (
     <main className="site-shell">
+      <SiteHeader />
       <section className="stories section container">
         <Link className="text-link" href="/"><ArrowLeft size={16} /> Back to Grr</Link>
         <div className="stories-heading"><div><div className="eyebrow"><span className="eyebrow-line" /> From the Grr journal</div><h2>Useful things,<br /><em>beautifully told.</em></h2></div></div>

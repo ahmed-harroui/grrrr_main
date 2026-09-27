@@ -38,6 +38,13 @@ export const ThreadSchema = z.object({ thread: z.array(z.string()) })
 
 export const QuestionIdeasSchema = z.object({ questions: z.array(z.string()) })
 
+export const FactThreadSchema = z.object({
+  title: z.string().describe('Short, intriguing title, max 100 characters'),
+  body: z.string().describe('The thread text, 400–1200 characters, short paragraphs separated by blank lines'),
+  category: z.enum(['fact', 'history', 'culture', 'science', 'story', 'tip']),
+  animal: z.enum(['dog', 'cat', 'all']),
+})
+
 /** Guide as stored in Sanity. */
 export type ThreadPost = { _key: string; text: string; postId?: string }
 export type Guide = {

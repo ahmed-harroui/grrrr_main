@@ -1,17 +1,15 @@
 import Link from 'next/link'
-import { ArrowUpRight, Bone, ChevronRight, Heart, PawPrint, Sparkles, Store, Stethoscope, Users } from 'lucide-react'
+import { ArrowUpRight, BookOpen, Bone, ChevronRight, Heart, MessagesSquare, PawPrint, PenLine, Sparkles, Store, Stethoscope, Users } from 'lucide-react'
 import { NewsletterForm } from '@/components/newsletter-form'
+import { SiteHeader } from '@/components/site-header'
+import { listThreads, THREAD_CATEGORIES } from '@/lib/community/threads'
 import { getAllGuides } from '@/lib/content/store'
-
-export const revalidate = 60
 
 const products = [
   { icon: Heart, label: 'Grr Dating', description: 'Find the right connections for you and your pet.', color: 'coral' },
   { icon: Stethoscope, label: 'Grr Care', description: 'An intelligent companion for their everyday wellbeing.', color: 'sage' },
   { icon: Store, label: 'Grr Store', description: 'Thoughtful products for a happier pet life.', color: 'yellow' },
 ]
-
-const accents = ['coral', 'sage', 'yellow']
 
 // Shown until enough AI guides exist to fill the three cards.
 const placeholderStories = [
@@ -26,18 +24,10 @@ async function latestStories() {
 }
 
 export default async function Page() {
-  const stories = await latestStories()
+  const [stories, threads] = await Promise.all([latestStories(), listThreads({ sort: 'top', limit: 3 })])
   return (
     <main className="site-shell">
-      <nav className="nav container" aria-label="Main navigation">
-        <a className="wordmark" href="#top" aria-label="Grr home"><span className="wordmark-mark"><PawPrint size={18} strokeWidth={2.5} /></span>grr<span className="wordmark-dot">.</span></a>
-        <div className="nav-links">
-          <a href="#ecosystem">The ecosystem</a>
-          <a href="#stories">Stories</a>
-          <a href="#about">About Grr</a>
-        </div>
-        <a href="#apps" className="nav-cta">Explore Grr <ArrowUpRight size={15} /></a>
-      </nav>
+      <SiteHeader />
 
       <section id="top" className="hero container">
         <div className="hero-copy">
@@ -72,7 +62,42 @@ export default async function Page() {
         <div className="knowledge-inner container"><div className="knowledge-copy"><div className="eyebrow light"><span className="eyebrow-line" /> The Grr knowledge engine</div><h2>Questions become<br /><em>better living.</em></h2><p>Grr listens to the questions pet people ask, finds what matters, and turns it into something useful — a guide, a conversation, a little more confidence.</p><a className="button button-light" href="#stories">See how it works <ArrowUpRight size={16} /></a></div><div className="orbit-card"><div className="orbit-center"><PawPrint size={28} /><span>Grr<br /><small>knowledge</small></span></div><div className="orbit-node node-a">Questions</div><div className="orbit-node node-b">Insights</div><div className="orbit-node node-c">Guides</div><div className="orbit-node node-d">Care</div><div className="orbit-ring ring-one" /><div className="orbit-ring ring-two" /></div></div>
       </section>
 
-      <section id="stories" className="stories section container"><div className="stories-heading"><div><div className="eyebrow"><span className="eyebrow-line" /> From the Grr journal</div><h2>Useful things,<br /><em>beautifully told.</em></h2></div><a className="text-link" href="/guides">View all stories <ArrowUpRight size={16} /></a></div><div className="story-grid">{stories.map((story, index) => <Link className="story-card" href={story.href} key={story.title}><div className={`story-art art-${accents[index % accents.length]}`}><span className="story-art-label">{story.label}</span><div className="abstract-shape" /></div><div className="story-meta"><span>{story.category}</span><span>{story.read}</span></div><h3>{story.title}</h3><span className="story-read">Read story <ArrowUpRight size={15} /></span></Link>)}</div></section>
+      <section id="stories" className="stories section container">
+        <div className="stories-heading"><div><div className="eyebrow"><span className="eyebrow-line" /> From the Grr journal</div><h2>Useful things,<br /><em>beautifully told.</em></h2></div></div>
+        <div className="journal-grid">
+          <div className="journal-col">
+            <div className="journal-col-head"><span className="product-number">01</span><h3>Guides</h3><BookOpen size={20} /></div>
+            <p className="journal-col-lede">Real questions, answered properly.</p>
+            {stories.map((story) => (
+              <Link className="journal-item" href={story.href} key={story.title}>
+                <span className="journal-item-meta">{story.category} · {story.read}</span>
+                <span className="journal-item-title">{story.title}</span>
+              </Link>
+            ))}
+            <Link className="text-link" href="/guides">All guides <ArrowUpRight size={16} /></Link>
+          </div>
+
+          <div className="journal-col">
+            <div className="journal-col-head"><span className="product-number">02</span><h3>Threads</h3><MessagesSquare size={20} /></div>
+            <p className="journal-col-lede">Little stories from the community — history, culture, surprising facts.</p>
+            {threads.length === 0 && <p className="journal-empty">The first threads are on their way.</p>}
+            {threads.map((thread) => (
+              <Link className="journal-item" href={`/threads/${thread.id}`} key={thread.id}>
+                <span className="journal-item-meta">{THREAD_CATEGORIES[thread.category]} · <Heart size={11} /> {thread.like_count} · @{thread.author?.username}</span>
+                <span className="journal-item-title">{thread.title}</span>
+              </Link>
+            ))}
+            <Link className="text-link" href="/threads">All threads <ArrowUpRight size={16} /></Link>
+          </div>
+
+          <Link className="journal-cta" href="/threads/new">
+            <div className="journal-col-head"><span className="product-number">03</span><PenLine size={20} /></div>
+            <h3>Know a story<br />worth telling?</h3>
+            <p>An old tradition, a strange fact, a moment with your pet. Share it with the Grr community.</p>
+            <span className="button button-dark">Post a thread <ArrowUpRight size={16} /></span>
+          </Link>
+        </div>
+      </section>
 
       <section id="about" className="newsletter container"><div className="newsletter-icon"><Users size={26} /></div><div><div className="eyebrow"><span className="eyebrow-line" /> Stay in the loop</div><h2>Good things,<br /><em>straight to your inbox.</em></h2></div><NewsletterForm /></section>
 

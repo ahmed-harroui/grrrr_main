@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { PortableText } from 'next-sanity'
 import { ArrowLeft, Stethoscope } from 'lucide-react'
+import { SiteHeader } from '@/components/site-header'
 import { getAllGuides, getGuide } from '@/lib/content/store'
 
 export const revalidate = 60
@@ -21,6 +22,7 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
   if (!guide) notFound()
   return (
     <main className="site-shell">
+      <SiteHeader />
       <article className="guide container">
         <Link className="text-link" href="/guides"><ArrowLeft size={16} /> All guides</Link>
         <div className="eyebrow guide-eyebrow"><span className="eyebrow-line" /> {guide.category} · {guide.readMinutes} min read</div>

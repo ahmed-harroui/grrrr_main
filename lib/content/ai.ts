@@ -2,7 +2,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod'
 import type { z } from 'zod'
 import { REWRITE_MODES, type RewriteMode } from './modes'
-import { CATEGORIES, CritiqueSchema, GeneratedGuideSchema, QuestionIdeasSchema, RewriteSchema, ThreadSchema, type AiBlock } from './schema'
+import { CATEGORIES, CritiqueSchema, FactThreadSchema, GeneratedGuideSchema, QuestionIdeasSchema, RewriteSchema, ThreadSchema, type AiBlock } from './schema'
 
 const MODEL = 'claude-opus-5'
 
@@ -64,6 +64,20 @@ export function critiqueGuide(draft: Draft) {
   return ask(
     CritiqueSchema,
     `Here is a draft guide as JSON:\n\n${asJson(draft)}\n\nAct as a demanding editor. Judge it against the Grr voice, clarity, accuracy, usefulness and how interesting it is to read. Give a score out of 10 and specific tips (written in French for the editor, quoting the English passage each tip is about).`,
+    'medium',
+  )
+}
+
+/** A short community thread: a historical, cultural or scientific fact about pets (admins only). */
+export function generateFactThread(topic: string, recentTitles: string[]) {
+  return ask(
+    FactThreadSchema,
+    `Write a short thread for the Grr community feed: a genuinely surprising, well-established fact, piece of history or cultural story about dogs or cats${topic.trim() ? `, on this theme: "${topic.trim()}"` : ' (pick the theme yourself)'}.
+
+It must be true and widely documented — if you are not confident about a detail (a date, a number, a name), leave it out rather than guess. Tell it like a story: a hook in the first line, then the context, then why it still matters to pet owners today. Plain text, no markdown, no hashtags, at most one emoji.
+
+Recent threads (pick a different subject):
+${recentTitles.map((t) => `- ${t}`).join('\n') || '(none yet)'}`,
     'medium',
   )
 }
