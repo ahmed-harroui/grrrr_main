@@ -1,10 +1,11 @@
-# Weekly: Claude writes a guide from the oldest question in the Studio queue, saves it to Sanity
-# (as a draft to review, or published if AUTO_PUBLISH is "true"), then posts the Threads thread of
-# every published guide that hasn't been posted yet — including the ones you published by hand.
+# Weekly run of the Grr content engine. It follows the settings of the Studio dashboard
+# (/studio → Tableau de bord): pause, guides per run, draft vs. direct publishing.
+# Each run writes guides from the oldest questions in the queue (refilling it with AI ideas when
+# empty), then posts the Threads thread of every published guide not yet posted.
 #
 # Repo settings → Secrets and variables → Actions:
-#   secrets:   ANTHROPIC_API_KEY, THREADS_ACCESS_TOKEN, SANITY_API_WRITE_TOKEN
-#   variables: NEXT_PUBLIC_SANITY_PROJECT_ID, SITE_URL, AUTO_PUBLISH ("true" or "false"),
+#   secrets:   ANTHROPIC_API_KEY, SANITY_API_WRITE_TOKEN, THREADS_ACCESS_TOKEN (optional)
+#   variables: NEXT_PUBLIC_SANITY_PROJECT_ID, SITE_URL,
 #              NEXT_PUBLIC_SANITY_DATASET (optional, default "production"), THREADS_USER_ID (optional)
 name: Content engine
 
@@ -13,9 +14,6 @@ on:
     - cron: '0 8 * * 1' # every Monday at 08:00 UTC
   workflow_dispatch:
     inputs:
-      count:
-        description: Number of guides to generate (0 = only post pending threads)
-        default: '1'
       dry_run:
         description: Preview the threads without posting
         type: boolean
@@ -37,7 +35,6 @@ jobs:
       NEXT_PUBLIC_SANITY_DATASET: ${{ vars.NEXT_PUBLIC_SANITY_DATASET }}
       THREADS_USER_ID: ${{ vars.THREADS_USER_ID }}
       SITE_URL: ${{ vars.SITE_URL }}
-      AUTO_PUBLISH: ${{ vars.AUTO_PUBLISH }}
     steps:
       - uses: actions/checkout@v4
 
@@ -50,10 +47,5 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - name: Generate guides
-        if: ${{ (inputs.count || '1') != '0' }}
-        run: pnpm content generate --count ${{ inputs.count || '1' }}
-
-      - name: Post pending threads
-        if: ${{ !cancelled() }}
-        run: pnpm content post ${{ inputs.dry_run && '--dry-run' || '--wait-live' }}
+      - name: Weekly run
+        run: pnpm content scheduled ${{ inputs.dry_run && '--dry-run' || '' }}

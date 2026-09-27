@@ -7,6 +7,8 @@
  *   pnpm content generate --publish                      # publish directly instead of saving a draft
  *   pnpm content post [--dry-run] [--wait-live]          # post threads of published guides not yet posted
  *   pnpm content run --count 1 [--publish] [--wait-live] # generate, then post what is published
+ *   pnpm content scheduled [--dry-run]                   # the weekly job: follows the Studio dashboard settings
+ *   pnpm content ideas                                   # add AI question ideas to the queue
  *   pnpm content import                                  # one-off: move content/guides/*.json + questions.txt into Sanity
  *
  * AUTO_PUBLISH=true has the same effect as --publish.
@@ -15,46 +17,11 @@ import './load-env'
 import fs from 'node:fs'
 import path from 'node:path'
 import Anthropic from '@anthropic-ai/sdk'
-import { AiDeclinedError, generateGuide, suggestQuestions } from '../lib/content/ai'
-import { key } from '../lib/content/portable-text'
-import { postGuideThread } from '../lib/content/publish'
+import { generateGuides, postPendingThreads, refillQueue, scheduledRun } from '../lib/content/engine'
+import { aiBlocksToPortable, key } from '../lib/content/portable-text'
 import type { AiBlock } from '../lib/content/schema'
-import { addQuestions, coveredTopics, existingTitles, guidesPendingThread, markQuestionUsed, nextQuestions, saveGeneratedGuide } from '../lib/content/store'
-
-/** How many new question ideas Claude adds when the queue runs empty (≈ 2 months at one guide a week). */
-const QUEUE_REFILL = 8
-import { aiBlocksToPortable } from '../lib/content/portable-text'
+import { addQuestions } from '../lib/content/store'
 import { writeClient } from '../lib/sanity/client'
-
-async function generate(questions: { text: string; _id?: string }[], publish: boolean) {
-  let created = 0
-  for (const question of questions) {
-    console.log(`\n✍️  Generating: ${question.text}`)
-    try {
-      const guide = await generateGuide(question.text, await existingTitles())
-      const { id, slug } = await saveGeneratedGuide(guide, question.text, publish)
-      if (question._id) await markQuestionUsed(question._id, id)
-      created++
-      console.log(`   ✓ ${guide.title} → ${publish ? 'published' : 'draft to review in /studio'} (/guides/${slug}, ${guide.thread.length} Threads posts)`)
-    } catch (err) {
-      if (!(err instanceof AiDeclinedError) && !(err instanceof Error && err.message.startsWith('Incomplete'))) throw err
-      console.error(`   ✗ ${err.message} Skipping.`)
-    }
-  }
-  return created
-}
-
-async function post(dryRun: boolean, waitLive: boolean) {
-  if (!dryRun && !process.env.THREADS_ACCESS_TOKEN) {
-    return console.log('\nThreads not configured (THREADS_ACCESS_TOKEN is empty) — skipping posting. Threads are kept in Sanity for later.')
-  }
-  const guides = await guidesPendingThread()
-  if (guides.length === 0) return console.log('\nNothing to post — every published guide already has its thread on Threads.')
-  for (const guide of guides) {
-    console.log(`\n🧵 ${dryRun ? '[dry run] ' : ''}${guide.title}`)
-    await postGuideThread(guide, { dryRun, waitLive })
-  }
-}
 
 /** One-off migration of the file-based content from the first version of the engine. */
 async function importFiles() {
@@ -97,35 +64,30 @@ async function main() {
   const count = countIdx >= 0 ? Number(args[countIdx + 1]) : 1
   const positional = args.filter((a, i) => !a.startsWith('--') && !(countIdx >= 0 && i === countIdx + 1))
 
-  async function generateFromArgs() {
-    if (positional.length) return generate(positional.map((text) => ({ text })), publish)
-    let questions = await nextQuestions(count)
-    if (questions.length < count) {
-      // Queue running dry: let Claude refill it (visible and editable in the Studio before use).
-      const ideas = await suggestQuestions(QUEUE_REFILL, await coveredTopics())
-      await addQuestions(ideas)
-      console.log(`\n💡 Question queue was empty — added ${ideas.length} new ideas:\n${ideas.map((q) => `   • ${q}`).join('\n')}`)
-      questions = await nextQuestions(count)
-    }
-    return generate(questions, publish)
-  }
+  const generateFromArgs = () => generateGuides({ questions: positional, count, publish })
 
   switch (command) {
     case 'generate':
       await generateFromArgs()
       break
     case 'post':
-      await post(dryRun, waitLive)
+      await postPendingThreads({ dryRun, waitLive })
       break
     case 'run':
       await generateFromArgs()
-      await post(dryRun, waitLive)
+      await postPendingThreads({ dryRun, waitLive })
+      break
+    case 'scheduled':
+      await scheduledRun({ dryRun })
+      break
+    case 'ideas':
+      await refillQueue()
       break
     case 'import':
       await importFiles()
       break
     default:
-      console.log('Usage: pnpm content <generate|post|run|import> [questions…] [--count N] [--publish] [--dry-run] [--wait-live]')
+      console.log('Usage: pnpm content <generate|post|run|scheduled|ideas|import> [questions…] [--count N] [--publish] [--dry-run] [--wait-live]')
       process.exitCode = command ? 1 : 0
   }
 }

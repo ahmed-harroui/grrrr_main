@@ -60,6 +60,19 @@ export async function nextQuestions(count: number): Promise<{ _id: string; text:
   return writeClient().fetch(`*[_type == "question" && ${PUBLISHED} && used != true] | order(_createdAt asc)[0...$count] { _id, text }`, { count })
 }
 
+export const ENGINE_SETTINGS_ID = 'engineSettings'
+export type EngineSettings = { paused: boolean; autoPublish: boolean; guidesPerRun: number }
+
+/** Settings chosen in the Studio dashboard; falls back to AUTO_PUBLISH until they've been saved once. */
+export async function getEngineSettings(): Promise<EngineSettings> {
+  const doc = await writeClient().fetch<Partial<EngineSettings> | null>(`*[_id == $id][0]`, { id: ENGINE_SETTINGS_ID })
+  return {
+    paused: doc?.paused ?? false,
+    autoPublish: doc?.autoPublish ?? process.env.AUTO_PUBLISH === 'true',
+    guidesPerRun: Math.min(Math.max(doc?.guidesPerRun ?? 1, 1), 5),
+  }
+}
+
 /** Every question and guide title so far — used to keep new question ideas fresh. */
 export async function coveredTopics(): Promise<string[]> {
   const { questions, titles } = await writeClient().fetch<{ questions: string[]; titles: string[] }>(

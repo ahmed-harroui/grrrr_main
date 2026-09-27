@@ -3,6 +3,7 @@
 import { defineConfig } from 'sanity'
 import { structureTool } from 'sanity/structure'
 import { AiAssistAction, PostThreadAction } from './sanity/actions'
+import { dashboardPlugin } from './sanity/dashboard'
 import { schemaTypes } from './sanity/schemaTypes'
 import { dataset, projectId } from './lib/sanity/env'
 
@@ -13,6 +14,7 @@ export default defineConfig({
   projectId,
   dataset,
   plugins: [
+    dashboardPlugin, // first plugin = the tool that opens by default
     structureTool({
       structure: (S) =>
         S.list()

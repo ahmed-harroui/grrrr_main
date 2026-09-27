@@ -1,4 +1,5 @@
+import { engineSettings } from './engineSettings'
 import { guide } from './guide'
 import { question } from './question'
 
-export const schemaTypes = [guide, question]
+export const schemaTypes = [guide, question, engineSettings]
