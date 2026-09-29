@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
+import { SiteFooter } from '@/components/site-footer'
 import { SiteHeader } from '@/components/site-header'
 import { getCurrentProfile } from '@/lib/supabase/server'
 import { AccountForm } from './account-form'
@@ -19,6 +20,7 @@ export default async function AccountPage() {
         {profile.role === 'admin' && <p className="auth-lede">You’re an admin: you can post official threads, use AI suggestions and delete any thread or comment.</p>}
         <AccountForm username={profile.username} displayName={profile.display_name ?? ''} />
       </section>
+      <SiteFooter />
     </main>
   )
 }

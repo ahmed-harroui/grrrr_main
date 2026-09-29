@@ -1,23 +1,19 @@
 # Weekly run of the Grr content engine. It follows the settings of the Studio dashboard
 # (/studio → Tableau de bord): pause, guides per run, draft vs. direct publishing.
 # Each run writes guides from the oldest questions in the queue (refilling it with AI ideas when
-# empty), then posts the Threads thread of every published guide not yet posted.
+# empty), then shares every published guide not yet shared: its thread on the site's /threads feed,
+# the guide itself in the GRRR Care assistant's knowledge.
 #
 # Repo settings → Secrets and variables → Actions:
-#   secrets:   ANTHROPIC_API_KEY, SANITY_API_WRITE_TOKEN, THREADS_ACCESS_TOKEN (optional)
-#   variables: NEXT_PUBLIC_SANITY_PROJECT_ID, SITE_URL,
-#              NEXT_PUBLIC_SANITY_DATASET (optional, default "production"), THREADS_USER_ID (optional)
+#   secrets:   ANTHROPIC_API_KEY, SANITY_API_WRITE_TOKEN, SUPABASE_SECRET_KEY
+#   variables: NEXT_PUBLIC_SANITY_PROJECT_ID, NEXT_PUBLIC_SUPABASE_URL,
+#              NEXT_PUBLIC_SANITY_DATASET (optional, default "production")
 name: Content engine
 
 on:
   schedule:
     - cron: '0 8 * * 1' # every Monday at 08:00 UTC
   workflow_dispatch:
-    inputs:
-      dry_run:
-        description: Preview the threads without posting
-        type: boolean
-        default: false
 
 concurrency:
   group: content-engine
@@ -29,13 +25,11 @@ jobs:
     timeout-minutes: 45
     env:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-      THREADS_ACCESS_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
       SANITY_API_WRITE_TOKEN: ${{ secrets.SANITY_API_WRITE_TOKEN }}
+      SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
       NEXT_PUBLIC_SANITY_PROJECT_ID: ${{ vars.NEXT_PUBLIC_SANITY_PROJECT_ID }}
       NEXT_PUBLIC_SANITY_DATASET: ${{ vars.NEXT_PUBLIC_SANITY_DATASET }}
-      THREADS_USER_ID: ${{ vars.THREADS_USER_ID }}
-      SITE_URL: ${{ vars.SITE_URL }}
-    steps:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}    steps:
       - uses: actions/checkout@v4
 
       - uses: pnpm/action-setup@v4
@@ -48,4 +42,4 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - name: Weekly run
-        run: pnpm content scheduled ${{ inputs.dry_run && '--dry-run' || '' }}
+        run: pnpm content scheduled

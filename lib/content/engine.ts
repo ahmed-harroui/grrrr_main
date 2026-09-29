@@ -1,6 +1,7 @@
 import { AiDeclinedError, generateGuide, suggestQuestions } from './ai'
-import { postGuideThread } from './publish'
-import { addQuestions, coveredTopics, existingTitles, getEngineSettings, guidesPendingThread, markQuestionUsed, nextQuestions, saveGeneratedGuide } from './store'
+import { adminConfigured } from '../supabase/admin'
+import { shareGuideThread, syncGuideKnowledge } from './share'
+import { addQuestions, coveredTopics, existingTitles, getEngineSettings, guidesPendingThread, markQuestionUsed, nextQuestions, publishedGuides, saveGeneratedGuide } from './store'
 
 /** How many new question ideas Claude adds when the queue runs empty (≈ 2 months at one guide a week). */
 export const QUEUE_REFILL = 8
@@ -39,28 +40,40 @@ export async function generateGuides({ questions, count, publish, log = console.
   return created
 }
 
-/** Posts the thread of every published guide not yet on Threads. No-op when Threads isn't configured. */
-export async function postPendingThreads({ dryRun = false, waitLive = false, log = console.log }: { dryRun?: boolean; waitLive?: boolean; log?: Log } = {}) {
-  if (!dryRun && !process.env.THREADS_ACCESS_TOKEN) {
-    log('Threads not configured (THREADS_ACCESS_TOKEN is empty) — skipping posting. Threads are kept in Sanity for later.')
+const NOT_CONFIGURED = 'Supabase not configured (NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SECRET_KEY) — guides are not shared yet; they will be on the next run.'
+
+/** Every published guide not yet shared: its thread goes on the site's feed and the guide into the assistant's knowledge. */
+export async function sharePendingGuides({ log = console.log }: { log?: Log } = {}) {
+  if (!adminConfigured()) {
+    log(NOT_CONFIGURED)
     return 0
   }
   const guides = await guidesPendingThread()
-  if (guides.length === 0) log('Nothing to post — every published guide already has its thread on Threads.')
+  if (guides.length === 0) log('Nothing to share — every published guide already has its thread on the site.')
   for (const guide of guides) {
-    log(`🧵 ${dryRun ? '[dry run] ' : ''}${guide.title}`)
-    await postGuideThread(guide, { dryRun, waitLive, log })
+    await syncGuideKnowledge(guide)
+    await shareGuideThread(guide)
+    log(`🧵 ${guide.title} → thread on /threads + assistant knowledge`)
   }
   return guides.length
 }
 
+/** Sends every published guide to the assistant's knowledge again (after edits, or to fill it the first time). */
+export async function syncAllKnowledge({ log = console.log }: { log?: Log } = {}) {
+  if (!adminConfigured()) throw new Error(NOT_CONFIGURED)
+  const guides = await publishedGuides()
+  for (const guide of guides) await syncGuideKnowledge(guide)
+  log(`🧠 ${guides.length} guide(s) in the GRRR Care assistant's knowledge.`)
+  return guides.length
+}
+
 /** The scheduled run: obeys the settings chosen in the Studio dashboard. */
-export async function scheduledRun({ dryRun = false, log = console.log }: { dryRun?: boolean; log?: Log } = {}) {
+export async function scheduledRun({ log = console.log }: { log?: Log } = {}) {
   const settings = await getEngineSettings()
   if (settings.paused) {
     log('⏸  Automatic mode is paused in the Studio dashboard — no new guide this time.')
   } else {
     await generateGuides({ count: settings.guidesPerRun, publish: settings.autoPublish, log })
   }
-  await postPendingThreads({ dryRun, waitLive: true, log })
+  await sharePendingGuides({ log })
 }

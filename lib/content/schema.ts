@@ -16,7 +16,7 @@ export const GeneratedGuideSchema = z.object({
   readMinutes: z.number().int(),
   body: z.array(AiBlockSchema).describe('The guide body: 4–6 h2 sections, each followed by normal paragraphs (bullets only where they genuinely help)'),
   vetNote: z.string().describe('When to see a vet; empty string if not relevant'),
-  thread: z.array(z.string()).describe('Threads posts, in order; each under 450 characters, first one is the hook'),
+  thread: z.array(z.string()).describe('Paragraphs of the community thread, in order; first one is the hook'),
 })
 export type GeneratedGuide = z.infer<typeof GeneratedGuideSchema>
 
@@ -46,7 +46,7 @@ export const FactThreadSchema = z.object({
 })
 
 /** Guide as stored in Sanity. */
-export type ThreadPost = { _key: string; text: string; postId?: string }
+export type ThreadPost = { _key: string; text: string }
 export type Guide = {
   _id: string
   title: string

@@ -99,17 +99,17 @@ export async function guidesPendingThread(): Promise<Guide[]> {
   return writeClient().fetch(`*[_type == "guide" && ${PUBLISHED} && count(thread) > 0 && !defined(threadPostedAt)] | order(_createdAt asc) { ${GUIDE_FIELDS} }`)
 }
 
-/** Writes to the published doc AND any open draft, so publishing a later edit can't wipe the posted ids. */
+export async function publishedGuides(): Promise<Guide[]> {
+  return writeClient().fetch(`*[_type == "guide" && ${PUBLISHED}] | order(_createdAt asc) { ${GUIDE_FIELDS} }`)
+}
+
+/** Writes to the published doc AND any open draft, so publishing a later edit can't wipe the "shared" date. */
 async function patchBoth(id: string, set: Record<string, unknown>) {
   const client = writeClient()
   const draftId = `drafts.${id}`
   const tx = client.transaction().patch(id, (p) => p.set(set))
   if (await client.fetch(`defined(*[_id == $draftId][0]._id)`, { draftId })) tx.patch(draftId, (p) => p.set(set))
   await tx.commit()
-}
-
-export function savePostId(guideId: string, postKey: string, postId: string) {
-  return patchBoth(guideId, { [`thread[_key=="${postKey}"].postId`]: postId })
 }
 
 export function markThreadPosted(guideId: string) {

@@ -13,6 +13,9 @@ export type Thread = {
   category: ThreadCategory
   animal: Animal
   is_official: boolean
+  /** Set when the thread shares a guide: links to /guides/<slug>. */
+  guide_slug: string | null
+  /** Upvotes. */
   like_count: number
   comment_count: number
   created_at: string
@@ -21,7 +24,10 @@ export type Thread = {
 }
 export type Comment = { id: string; author_id: string; body: string; created_at: string; author: Author | null }
 
-const THREAD_COLUMNS = 'id, author_id, title, body, category, animal, is_official, like_count, comment_count, created_at, author:grr_members!grr_threads_author_id_fkey(username, display_name, avatar_url)'
+const THREAD_COLUMNS = 'id, author_id, title, body, category, animal, is_official, guide_slug, like_count, comment_count, created_at, author:grr_members!grr_threads_author_id_fkey(username, display_name, avatar_url)'
+// Until supabase/threads-knowledge.sql has been run, guide_slug doesn't exist: the feed still shows, without guide links
+const LEGACY_COLUMNS = THREAD_COLUMNS.replace('guide_slug, ', '')
+const missingGuideSlug = (error: { code?: string; message?: string } | null) => error?.code === '42703' && Boolean(error.message?.includes('guide_slug'))
 
 async function withLikes(supabase: Awaited<ReturnType<typeof createClient>>, rows: Omit<Thread, 'liked'>[]): Promise<Thread[]> {
   const { data: claims } = await supabase.auth.getClaims()
@@ -32,24 +38,42 @@ async function withLikes(supabase: Awaited<ReturnType<typeof createClient>>, row
   return rows.map((t) => ({ ...t, liked: liked.has(t.id) }))
 }
 
-export async function listThreads({ sort = 'new', category, limit = 30 }: { sort?: 'new' | 'top'; category?: string; limit?: number } = {}): Promise<Thread[]> {
+export type ThreadSort = 'new' | 'trending' | 'top'
+
+const TRENDING_DAYS = 30
+
+/** Hacker News-style: upvotes count for less as a thread gets older, so fresh favourites rise to the top. */
+function trendingScore(t: { like_count: number; comment_count: number; created_at: string }) {
+  const hours = (Date.now() - new Date(t.created_at).getTime()) / 3_600_000
+  return (t.like_count + t.comment_count / 2) / Math.pow(hours + 2, 1.5)
+}
+
+export async function listThreads({ sort = 'new', category, limit = 30 }: { sort?: ThreadSort; category?: string; limit?: number } = {}): Promise<Thread[]> {
   if (!supabaseConfigured) return []
   const supabase = await createClient()
-  let query = supabase.from('grr_threads').select(THREAD_COLUMNS).eq('status', 'published')
-  if (category && category in THREAD_CATEGORIES) query = query.eq('category', category)
-  query = sort === 'top' ? query.order('like_count', { ascending: false }).order('created_at', { ascending: false }) : query.order('created_at', { ascending: false })
-  const { data, error } = await query.limit(limit)
+  const run = (columns: string) => {
+    let query = supabase.from('grr_threads').select(columns).eq('status', 'published')
+    if (category && category in THREAD_CATEGORIES) query = query.eq('category', category)
+    if (sort === 'trending') query = query.gt('like_count', 0).gte('created_at', new Date(Date.now() - TRENDING_DAYS * 86_400_000).toISOString())
+    query = sort === 'new' ? query.order('created_at', { ascending: false }) : query.order('like_count', { ascending: false }).order('created_at', { ascending: false })
+    return query.limit(sort === 'trending' ? 200 : limit)
+  }
+  let { data, error } = await run(THREAD_COLUMNS)
+  if (missingGuideSlug(error)) ({ data, error } = await run(LEGACY_COLUMNS))
   if (error) {
     console.error('listThreads:', error.message) // e.g. schema not installed yet — show an empty feed
     return []
   }
-  return withLikes(supabase, (data ?? []) as unknown as Omit<Thread, 'liked'>[])
+  let rows = (data ?? []) as unknown as Omit<Thread, 'liked'>[]
+  if (sort === 'trending') rows = rows.sort((a, b) => trendingScore(b) - trendingScore(a)).slice(0, limit)
+  return withLikes(supabase, rows)
 }
 
 export async function getThread(id: string): Promise<{ thread: Thread; comments: Comment[] } | null> {
   if (!supabaseConfigured || !/^[0-9a-f-]{36}$/.test(id)) return null
   const supabase = await createClient()
-  const { data } = await supabase.from('grr_threads').select(THREAD_COLUMNS).eq('id', id).maybeSingle()
+  let { data, error } = await supabase.from('grr_threads').select(THREAD_COLUMNS).eq('id', id).maybeSingle()
+  if (missingGuideSlug(error)) ({ data, error } = await supabase.from('grr_threads').select(LEGACY_COLUMNS).eq('id', id).maybeSingle())
   if (!data) return null
   const [thread] = await withLikes(supabase, [data as unknown as Omit<Thread, 'liked'>])
   const { data: comments } = await supabase

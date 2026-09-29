@@ -12,7 +12,7 @@ Voice: calm, knowledgeable, kind, a little playful — never clickbait, never pr
 
 Body format: a list of blocks. Styles: "h2" section heading, "h3" sub-heading, "normal" paragraph, "blockquote" for one memorable line, "bullet"/"number" for list items. Inline **bold** and *italic* are allowed sparingly. No markdown headings, no bullet characters inside text.`
 
-const THREAD_RULES = `A Threads thread of 3–6 posts that stands on its own: post 1 is a curiosity hook, the middle posts each deliver one useful takeaway, the last post invites people to read the full guide (the link is appended automatically, so never write a URL). Each post under 450 characters. At most one emoji per post, 0–1 hashtags in the whole thread.`
+const THREAD_RULES = `a thread for the Grr community feed that stands on its own, as 3–5 short paragraphs: paragraph 1 is a curiosity hook, the middle ones each deliver one useful takeaway, the last one invites people to read the full guide (a link to it is shown under the thread, so never write a URL). Under 1,300 characters in total. Plain text, at most one emoji per paragraph, no hashtags.`
 
 export class AiDeclinedError extends Error {}
 

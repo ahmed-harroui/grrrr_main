@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { ArrowUpRight, PawPrint } from 'lucide-react'
 import { signOut } from '@/app/threads/actions'
+import { ProductLinks } from '@/components/product-showcase'
 import { getCurrentProfile } from '@/lib/supabase/server'
 
 export async function SiteHeader() {
@@ -12,6 +13,7 @@ export async function SiteHeader() {
         <Link href="/#ecosystem">The ecosystem</Link>
         <Link href="/guides">Guides</Link>
         <Link href="/threads">Threads</Link>
+        <ProductLinks className="nav-apps" />
       </div>
       {profile ? (
         <div className="nav-account">

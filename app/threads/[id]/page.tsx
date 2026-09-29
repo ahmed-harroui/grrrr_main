@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
+import { SiteFooter } from '@/components/site-footer'
 import { SiteHeader } from '@/components/site-header'
 import { ThreadCard } from '@/components/thread-card'
 import { getThread, timeAgo } from '@/lib/community/threads'
@@ -49,6 +50,7 @@ export default async function ThreadPage({ params }: { params: Promise<{ id: str
           {profile ? <CommentForm threadId={thread.id} /> : <p className="comment-signin"><Link className="text-link" href={`/login?next=/threads/${thread.id}`}>Sign in to join the conversation</Link></p>}
         </div>
       </section>
+      <SiteFooter />
     </main>
   )
 }

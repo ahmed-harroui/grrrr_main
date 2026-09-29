@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { BadgeCheck, MessageCircle } from 'lucide-react'
+import { BadgeCheck, BookOpen, MessageCircle } from 'lucide-react'
 import { ANIMALS, THREAD_CATEGORIES, timeAgo, type Thread } from '@/lib/community/threads'
 import { LikeButton } from './like-button'
 
@@ -11,9 +11,11 @@ export function ThreadCard({ thread, signedIn, full = false }: { thread: Thread;
         <span className="thread-category">{THREAD_CATEGORIES[thread.category]}</span>
         {thread.animal !== 'all' && <span className="thread-animal">{ANIMALS[thread.animal]}</span>}
         {thread.is_official && <span className="thread-official"><BadgeCheck size={13} /> Grr</span>}
+        {thread.guide_slug && <span className="stage-tag guide"><i />From a guide</span>}
       </div>
       {full ? <h1>{thread.title}</h1> : <h3><Link href={`/threads/${thread.id}`}>{thread.title}</Link></h3>}
       <div className="thread-body">{preview.split(/\n{2,}/).map((p, i) => <p key={i}>{p}</p>)}</div>
+      {thread.guide_slug && <Link className="text-link thread-guide-link" href={`/guides/${thread.guide_slug}`}><BookOpen size={15} /> Read the full guide</Link>}
       <div className="thread-footer">
         <span className="thread-author">@{thread.author?.username ?? 'someone'} · {timeAgo(thread.created_at)}</span>
         <div className="thread-actions">

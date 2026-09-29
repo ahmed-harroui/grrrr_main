@@ -110,7 +110,7 @@ function AiPanel({ doc, apply, close }: { doc: SanityDocument | null; apply: (pa
         <Heading size={0}>Relire et diffuser</Heading>
         <Flex gap={2} wrap="wrap">
           <Button mode="ghost" text="Conseils de l’éditeur (note /10)" disabled={!hasBody} onClick={() => run('Relecture', { task: 'critique' })} />
-          <Button mode="ghost" text="Générer le fil Threads" disabled={!hasBody || posted} onClick={() => run('Écriture du fil Threads', { task: 'thread' })} />
+          <Button mode="ghost" text="Générer le fil" disabled={!hasBody || posted} onClick={() => run('Écriture du fil', { task: 'thread' })} />
         </Flex>
       </Stack>
     </Stack>
@@ -135,21 +135,92 @@ export const AiAssistAction: DocumentActionComponent = (props) => {
   }
 }
 
+/** Manual "push to the Grr Care map" — the webhook does it automatically on publish; this is the fallback. */
+export const SyncPartnerAction: DocumentActionComponent = (props) => {
+  const [state, setState] = useState<'idle' | 'busy' | 'done'>('idle')
+  const [message, setMessage] = useState('')
+
+  async function sync() {
+    setState('busy')
+    try {
+      const res = await fetch('/api/studio/partners', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'sync', id: props.id }) })
+      const json = (await res.json().catch(() => ({}))) as { error?: string; action?: string; located?: boolean }
+      if (!res.ok) throw new Error(json.error ?? `Erreur ${res.status}`)
+      setMessage(json.action === 'removed'
+        ? '✓ Retiré de la carte (ce partenaire n’est pas publié).'
+        : json.located ? '✓ Carte Grr Care à jour.' : '⚠️ Envoyé, mais sans position : clique sur « 📍 Localiser l’adresse », puis publie à nouveau.')
+    } catch (err) {
+      setMessage(`✗ ${err instanceof Error ? err.message : String(err)}`)
+    }
+    setState('done')
+  }
+
+  return {
+    label: 'Mettre à jour la carte',
+    icon: ShareIcon,
+    title: props.draft ? 'Publie d’abord tes modifications : seule la version publiée va sur la carte.' : undefined,
+    onHandle: sync,
+    disabled: state === 'busy',
+    dialog: state === 'done' && {
+      type: 'dialog',
+      header: 'Carte Grr Care',
+      onClose: () => setState('idle'),
+      content: <Box padding={4}><Text>{message}</Text></Box>,
+    },
+  }
+}
+
+/** Manual "push to the GRRR Care app" for a health profile — the webhook does it automatically on publish. */
+export const SyncHealthProfileAction: DocumentActionComponent = (props) => {
+  const [state, setState] = useState<'idle' | 'busy' | 'done'>('idle')
+  const [message, setMessage] = useState('')
+
+  async function sync() {
+    setState('busy')
+    try {
+      const res = await fetch('/api/studio/health-profiles', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'sync', id: props.id }) })
+      const json = (await res.json().catch(() => ({}))) as { error?: string; action?: string; status?: string }
+      if (!res.ok) throw new Error(json.error ?? `Erreur ${res.status}`)
+      setMessage(json.action === 'removed'
+        ? '✓ Retiré de l’app (ce profil n’est pas publié).'
+        : `✓ L’app GRRR Care utilise maintenant ce profil${json.status === 'validated' ? ' (validé)' : ' (provisoire)'}.`)
+    } catch (err) {
+      setMessage(`✗ ${err instanceof Error ? err.message : String(err)}`)
+    }
+    setState('done')
+  }
+
+  return {
+    label: 'Mettre à jour l’app',
+    icon: ShareIcon,
+    title: props.draft ? 'Publie d’abord tes modifications : seule la version publiée est utilisée par l’app.' : undefined,
+    onHandle: sync,
+    disabled: state === 'busy',
+    dialog: state === 'done' && {
+      type: 'dialog',
+      header: 'Score de suivi GRRR Care',
+      onClose: () => setState('idle'),
+      content: <Box padding={4}><Text>{message}</Text></Box>,
+    },
+  }
+}
+
+/** Manual "share on the site" — the webhook does it automatically on publish; this is the fallback. */
 export const PostThreadAction: DocumentActionComponent = (props) => {
   const [state, setState] = useState<'idle' | 'confirm' | 'posting' | 'done' | 'error'>('idle')
   const [message, setMessage] = useState('')
   const published = props.published
   const thread = (published?.thread as unknown[] | undefined) ?? []
   const disabled = !published || thread.length === 0 || Boolean(published.threadPostedAt)
-  const title = !published ? 'Publie d’abord le guide' : published.threadPostedAt ? 'Fil déjà publié' : thread.length === 0 ? 'Aucun post dans le fil' : undefined
+  const title = !published ? 'Publie d’abord le guide' : published.threadPostedAt ? 'Déjà partagé sur le site' : thread.length === 0 ? 'Le fil est vide : Aide IA → Générer le fil' : undefined
 
   async function post() {
     setState('posting')
     try {
       const res = await fetch('/api/studio/threads', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: props.id }) })
-      const json = (await res.json().catch(() => ({}))) as { error?: string; posted?: number }
+      const json = (await res.json().catch(() => ({}))) as { error?: string }
       if (!res.ok) throw new Error(json.error ?? `Erreur ${res.status}`)
-      setMessage(`${json.posted} posts publiés sur Threads.`)
+      setMessage('Fil publié sur /threads, et guide ajouté aux connaissances de l’assistant GRRR Care.')
       setState('done')
     } catch (err) {
       setMessage(err instanceof Error ? err.message : String(err))
@@ -158,7 +229,7 @@ export const PostThreadAction: DocumentActionComponent = (props) => {
   }
 
   return {
-    label: 'Publier sur Threads',
+    label: 'Partager sur le site',
     icon: ShareIcon,
     disabled,
     title,
@@ -168,15 +239,15 @@ export const PostThreadAction: DocumentActionComponent = (props) => {
         ? {
             type: 'confirm',
             tone: 'primary',
-            message: `Publier les ${thread.length} posts du fil sur ton compte Threads ? ${props.draft ? '⚠️ Ce guide a des modifications non publiées : c’est la version publiée qui sera utilisée.' : ''}`,
+            message: `Publier le fil de ce guide sur /threads, au nom de Grr ? ${props.draft ? '⚠️ Ce guide a des modifications non publiées : c’est la version publiée qui sera utilisée.' : ''}`,
             onConfirm: post,
             onCancel: () => setState('idle'),
           }
         : state !== 'idle' && {
             type: 'dialog',
-            header: 'Threads',
+            header: 'Threads du site',
             onClose: () => setState('idle'),
-            content: <Box padding={4}>{state === 'posting' ? <Flex gap={3} align="center"><Spinner muted /><Text>Publication en cours…</Text></Flex> : <Text>{state === 'done' ? '✓ ' : '✗ '}{message}</Text>}</Box>,
+            content: <Box padding={4}>{state === 'posting' ? <Flex gap={3} align="center"><Spinner muted /><Text>Partage en cours…</Text></Flex> : <Text>{state === 'done' ? '✓ ' : '✗ '}{message}</Text>}</Box>,
           },
   }
 }

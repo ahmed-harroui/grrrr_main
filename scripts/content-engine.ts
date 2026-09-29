@@ -1,13 +1,15 @@
 /**
  * Grr content engine — turns pet-owner questions into guides (stored in Sanity, shown on /guides)
- * and Threads posts that promote them. Everything can also be done by hand in the Studio (/studio).
+ * shared as threads on the site's community feed (/threads) and added to the GRRR Care assistant's knowledge.
+ * Everything can also be done by hand in the Studio (/studio).
  *
  *   pnpm content generate "Why does my dog eat grass?"   # one or more questions
  *   pnpm content generate --count 3                      # next 3 questions from the Studio queue
  *   pnpm content generate --publish                      # publish directly instead of saving a draft
- *   pnpm content post [--dry-run] [--wait-live]          # post threads of published guides not yet posted
- *   pnpm content run --count 1 [--publish] [--wait-live] # generate, then post what is published
- *   pnpm content scheduled [--dry-run]                   # the weekly job: follows the Studio dashboard settings
+ *   pnpm content share                                   # share published guides not yet shared
+ *   pnpm content knowledge                               # resend every published guide to the assistant
+ *   pnpm content run --count 1 [--publish]               # generate, then share what is published
+ *   pnpm content scheduled                               # the weekly job: follows the Studio dashboard settings
  *   pnpm content ideas                                   # add AI question ideas to the queue
  *   pnpm content import                                  # one-off: move content/guides/*.json + questions.txt into Sanity
  *
@@ -17,7 +19,7 @@ import './load-env'
 import fs from 'node:fs'
 import path from 'node:path'
 import Anthropic from '@anthropic-ai/sdk'
-import { generateGuides, postPendingThreads, refillQueue, scheduledRun } from '../lib/content/engine'
+import { generateGuides, refillQueue, scheduledRun, sharePendingGuides, syncAllKnowledge } from '../lib/content/engine'
 import { aiBlocksToPortable, key } from '../lib/content/portable-text'
 import type { AiBlock } from '../lib/content/schema'
 import { addQuestions } from '../lib/content/store'
@@ -42,7 +44,7 @@ async function importFiles() {
       readMinutes: g.readMinutes,
       body: aiBlocksToPortable(blocks),
       vetNote: g.vetNote,
-      thread: g.thread.map((p) => ({ _key: key(), _type: 'threadPost', text: p.text, ...(p.id ? { postId: p.id } : {}) })),
+      thread: g.thread.map((p) => ({ _key: key(), _type: 'threadPost', text: p.text })),
       ...(g.threadPostedAt ? { threadPostedAt: g.threadPostedAt } : {}),
       source: 'ai',
     })
@@ -57,8 +59,6 @@ async function importFiles() {
 
 async function main() {
   const [command, ...args] = process.argv.slice(2)
-  const dryRun = args.includes('--dry-run')
-  const waitLive = args.includes('--wait-live')
   const publish = args.includes('--publish') || process.env.AUTO_PUBLISH === 'true'
   const countIdx = args.indexOf('--count')
   const count = countIdx >= 0 ? Number(args[countIdx + 1]) : 1
@@ -70,15 +70,18 @@ async function main() {
     case 'generate':
       await generateFromArgs()
       break
-    case 'post':
-      await postPendingThreads({ dryRun, waitLive })
+    case 'share':
+      await sharePendingGuides()
+      break
+    case 'knowledge':
+      await syncAllKnowledge()
       break
     case 'run':
       await generateFromArgs()
-      await postPendingThreads({ dryRun, waitLive })
+      await sharePendingGuides()
       break
     case 'scheduled':
-      await scheduledRun({ dryRun })
+      await scheduledRun()
       break
     case 'ideas':
       await refillQueue()
@@ -87,7 +90,7 @@ async function main() {
       await importFiles()
       break
     default:
-      console.log('Usage: pnpm content <generate|post|run|scheduled|ideas|import> [questions…] [--count N] [--publish] [--dry-run] [--wait-live]')
+      console.log('Usage: pnpm content <generate|share|knowledge|run|scheduled|ideas|import> [questions…] [--count N] [--publish]')
       process.exitCode = command ? 1 : 0
   }
 }

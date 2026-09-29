@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
+import { SiteFooter } from '@/components/site-footer'
 import { SiteHeader } from '@/components/site-header'
 import { supabaseConfigured } from '@/lib/supabase/env'
 import { getCurrentProfile } from '@/lib/supabase/server'
@@ -19,10 +20,11 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       <section className="auth container">
         <div className="eyebrow"><span className="eyebrow-line" /> Join the Grr community</div>
         <h1>Share what you<br /><em>know and love.</em></h1>
-        <p className="auth-lede">Sign in to post threads, like the ones you enjoy and join the conversation.</p>
-        {error && <p className="form-error">That sign-in link didn’t work or has expired. Please ask for a new one.</p>}
+        <p className="auth-lede">Sign in to post threads, upvote the ones you enjoy and join the conversation.</p>
+        {error && <p className="form-error">That link didn’t work: it has expired, or was opened in another browser. Sign in with your password, or ask for a new link.</p>}
         {supabaseConfigured ? <LoginForm next={safeNext} /> : <p className="form-error">Sign-in isn’t configured yet.</p>}
       </section>
+      <SiteFooter />
     </main>
   )
 }

@@ -9,7 +9,7 @@ export const guide = defineType({
   icon: DocumentTextIcon,
   groups: [
     { name: 'content', title: 'Contenu', default: true },
-    { name: 'threads', title: 'Threads' },
+    { name: 'threads', title: 'Fil' },
     { name: 'settings', title: 'Réglages' },
   ],
   fields: [
@@ -48,24 +48,21 @@ export const guide = defineType({
     defineField({ name: 'vetNote', title: 'Quand consulter un vétérinaire', type: 'text', rows: 3, group: 'content' }),
     defineField({
       name: 'thread',
-      title: 'Fil Threads',
+      title: 'Fil (threads du site)',
       type: 'array',
       group: 'threads',
-      description: 'Un post par élément, 450 caractères max. Le lien du guide est ajouté automatiquement au dernier post.',
+      description: 'Un paragraphe par élément, 1 500 caractères au total. Il est publié sur /threads avec un lien vers le guide.',
       readOnly: ({ document }) => Boolean(document?.threadPostedAt),
       of: [
         defineArrayMember({
           name: 'threadPost',
           type: 'object',
-          fields: [
-            defineField({ name: 'text', title: 'Texte', type: 'text', rows: 4, validation: (r) => r.required().max(450) }),
-            defineField({ name: 'postId', title: 'ID Threads', type: 'string', readOnly: true, hidden: ({ value }) => !value }),
-          ],
-          preview: { select: { title: 'text', postId: 'postId' }, prepare: ({ title, postId }) => ({ title, subtitle: postId ? '✓ publié' : 'pas encore publié' }) },
+          fields: [defineField({ name: 'text', title: 'Texte', type: 'text', rows: 4, validation: (r) => r.required().max(450) })],
+          preview: { select: { title: 'text' } },
         }),
       ],
     }),
-    defineField({ name: 'threadPostedAt', title: 'Fil publié le', type: 'datetime', group: 'threads', readOnly: true }),
+    defineField({ name: 'threadPostedAt', title: 'Partagé sur le site le', type: 'datetime', group: 'threads', readOnly: true }),
     defineField({ name: 'slug', title: 'Adresse (slug)', type: 'slug', group: 'settings', options: { source: 'title', maxLength: 60 }, validation: (r) => r.required() }),
     defineField({ name: 'category', title: 'Catégorie', type: 'string', group: 'settings', options: { list: [...CATEGORIES] }, validation: (r) => r.required() }),
     defineField({ name: 'readMinutes', title: 'Temps de lecture (min)', type: 'number', group: 'settings', initialValue: 5 }),
@@ -73,7 +70,7 @@ export const guide = defineType({
   ],
   preview: {
     select: { title: 'title', category: 'category', posted: 'threadPostedAt' },
-    prepare: ({ title, category, posted }) => ({ title: title || 'Sans titre', subtitle: `${category ?? '—'}${posted ? ' · 🧵 posté' : ''}` }),
+    prepare: ({ title, category, posted }) => ({ title: title || 'Sans titre', subtitle: `${category ?? '—'}${posted ? ' · 🧵 partagé' : ''}` }),
   },
   orderings: [{ title: 'Plus récents', name: 'newest', by: [{ field: '_createdAt', direction: 'desc' }] }],
 })

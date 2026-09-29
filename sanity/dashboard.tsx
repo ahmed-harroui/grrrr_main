@@ -12,6 +12,9 @@ type Stats = {
   threadsPosted: number
   threadsPending: number
   settings: { paused?: boolean; autoPublish?: boolean; guidesPerRun?: number } | null
+  partners: number
+  partnersUnlocated: string[]
+  healthProfiles: { _id: string; species: string; label?: string; status?: string }[]
 }
 
 const STATS_QUERY = `{
@@ -25,7 +28,10 @@ const STATS_QUERY = `{
   "queue": *[_type == "question" && !(_id in path("drafts.**")) && used != true] | order(_createdAt asc) { _id, text },
   "threadsPosted": count(*[_type == "guide" && !(_id in path("drafts.**")) && defined(threadPostedAt)]),
   "threadsPending": count(*[_type == "guide" && !(_id in path("drafts.**")) && count(thread) > 0 && !defined(threadPostedAt)]),
-  "settings": *[_id == "engineSettings"][0]
+  "settings": *[_id == "engineSettings"][0],
+  "partners": count(*[_type == "partner" && !(_id in path("drafts.**"))]),
+  "partnersUnlocated": *[_type == "partner" && !(_id in path("drafts.**")) && !defined(location.lat)].name,
+  "healthProfiles": *[_type == "healthProfile" && !(_id in path("drafts.**"))] | order(species asc, minAgeMonths asc) { _id, species, "label": label.fr, status }
 }`
 
 /** Next Monday 08:00 UTC — must match the cron in .github/workflows/content.yml. */
@@ -53,7 +59,7 @@ function StatCard({ label, value, tone = 'default' }: { label: string; value: nu
 function Dashboard() {
   const client = useClient({ apiVersion: '2026-09-01' }).withConfig({ perspective: 'raw' })
   const [stats, setStats] = useState<Stats | null>(null)
-  const [config, setConfig] = useState<{ threadsConfigured: boolean; aiConfigured: boolean } | null>(null)
+  const [config, setConfig] = useState<{ communityConfigured: boolean; aiConfigured: boolean } | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const [log, setLog] = useState<{ ok: boolean; lines: string[] } | null>(null)
   const [newQuestion, setNewQuestion] = useState('')
@@ -71,12 +77,44 @@ function Dashboard() {
     await refresh()
   }
 
-  async function runAction(action: 'generate' | 'ideas' | 'post', label: string) {
+  async function runAction(action: 'generate' | 'ideas' | 'share' | 'knowledge', label: string) {
     setBusy(label); setLog(null)
     try {
       const res = await fetch('/api/studio/engine', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action }) })
       const json = (await res.json().catch(() => ({}))) as { ok?: boolean; log?: string[]; error?: string }
       setLog({ ok: res.ok && json.ok !== false, lines: [...(json.log ?? []), ...(json.error ? [`✗ ${json.error}`] : [])] })
+    } catch (err) {
+      setLog({ ok: false, lines: [`✗ ${err instanceof Error ? err.message : String(err)}`] })
+    } finally {
+      setBusy(null)
+      refresh()
+    }
+  }
+
+  async function syncMap() {
+    setBusy('Synchronisation de la carte'); setLog(null)
+    try {
+      const res = await fetch('/api/studio/partners', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'syncAll' }) })
+      const json = (await res.json().catch(() => ({}))) as { synced?: number; removed?: number; unlocated?: string[]; error?: string }
+      if (!res.ok) throw new Error(json.error ?? `Erreur ${res.status}`)
+      setLog({ ok: true, lines: [
+        `✓ ${json.synced} partenaire(s) à jour sur la carte Grr Care${json.removed ? `, ${json.removed} retiré(s)` : ''}.`,
+        ...(json.unlocated?.length ? [`⚠️ Sans position (invisibles sur la carte) : ${json.unlocated.join(', ')}`] : []),
+      ] })
+    } catch (err) {
+      setLog({ ok: false, lines: [`✗ ${err instanceof Error ? err.message : String(err)}`] })
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  async function healthProfilesAction(action: 'import' | 'syncAll') {
+    setBusy(action === 'import' ? 'Import des profils de l’app' : 'Mise à jour de l’app'); setLog(null)
+    try {
+      const res = await fetch('/api/studio/health-profiles', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action }) })
+      const json = (await res.json().catch(() => ({}))) as { imported?: number; synced?: number; error?: string }
+      if (!res.ok) throw new Error(json.error ?? `Erreur ${res.status}`)
+      setLog({ ok: true, lines: [action === 'import' ? `✓ ${json.imported} profil(s) importé(s) dans le Studio.` : `✓ ${json.synced} profil(s) envoyé(s) à l’app GRRR Care.`] })
     } catch (err) {
       setLog({ ok: false, lines: [`✗ ${err instanceof Error ? err.message : String(err)}`] })
     } finally {
@@ -117,7 +155,7 @@ function Dashboard() {
             <StatCard label="Guides publiés" value={stats.published} tone="positive" />
             <StatCard label="À relire" value={toReview.length} tone={toReview.length ? 'caution' : 'default'} />
             <StatCard label="Questions en attente" value={stats.queue.length} tone={stats.queue.length ? 'default' : 'caution'} />
-            <StatCard label="Fils Threads postés" value={`${stats.threadsPosted}${stats.threadsPending ? ` (+${stats.threadsPending})` : ''}`} />
+            <StatCard label="Fils partagés sur le site" value={`${stats.threadsPosted}${stats.threadsPending ? ` (+${stats.threadsPending})` : ''}`} />
           </Grid>
 
           {/* ---------- automatic mode ---------- */}
@@ -159,15 +197,34 @@ function Dashboard() {
               <Flex gap={2} wrap="wrap">
                 <Button tone="primary" text="Écrire un guide maintenant" disabled={Boolean(busy)} onClick={() => runAction('generate', 'Écriture du guide')} />
                 <Button mode="ghost" text="Ajouter 8 idées de questions" disabled={Boolean(busy)} onClick={() => runAction('ideas', 'Recherche d’idées')} />
-                <Button mode="ghost" text={`Publier les fils en attente (${stats.threadsPending})`} disabled={Boolean(busy) || !config?.threadsConfigured || stats.threadsPending === 0} onClick={() => runAction('post', 'Publication sur Threads')} />
+                <Button mode="ghost" text={`Partager les fils en attente (${stats.threadsPending})`} disabled={Boolean(busy) || !config?.communityConfigured || stats.threadsPending === 0} onClick={() => runAction('share', 'Partage sur le site')} />
+                <Button mode="ghost" text="Mettre à jour l’assistant" disabled={Boolean(busy) || !config?.communityConfigured} onClick={() => runAction('knowledge', 'Envoi des guides à l’assistant')} title="Renvoie tous les guides publiés à l’assistant GRRR Care (après des modifications)" />
               </Flex>
-              {config && !config.threadsConfigured && <Text size={1} muted>Threads n’est pas encore configuré : les fils sont gardés et pourront être publiés plus tard.</Text>}
+              {config && !config.communityConfigured && <Card padding={3} radius={2} tone="caution"><Text size={1}>SUPABASE_SECRET_KEY manque sur le serveur : les fils ne sont pas encore partagés sur le site ni envoyés à l’assistant. Ils le seront dès qu’elle sera ajoutée.</Text></Card>}
               {busy && <Flex gap={3} align="center"><Spinner muted /><Text size={1}>{busy}… (jusqu’à 1 min)</Text></Flex>}
               {log && (
                 <Card padding={3} radius={2} tone={log.ok ? 'positive' : 'critical'}>
                   <Stack gap={2}>{log.lines.map((line, i) => <Text key={i} size={1} style={{ whiteSpace: 'pre-wrap' }}>{line}</Text>)}</Stack>
                 </Card>
               )}
+            </Stack>
+          </Card>
+
+          {/* ---------- Grr Care map ---------- */}
+          <Card padding={4} radius={3} border>
+            <Stack gap={3}>
+              <Flex align="center" justify="space-between" gap={3} wrap="wrap">
+                <Heading size={1}>Partenaires sur la carte Grr Care</Heading>
+                <Badge tone="primary">{stats.partners} publié(s)</Badge>
+              </Flex>
+              <Text size={1} muted>Chaque partenaire publié part automatiquement sur la carte. Le bouton ci-dessous resynchronise tout, en cas de doute.</Text>
+              {stats.partnersUnlocated.length > 0 && (
+                <Card padding={3} radius={2} tone="caution"><Text size={1}>Sans position, donc invisibles sur la carte : {stats.partnersUnlocated.join(', ')}. Ouvre-les et clique sur « 📍 Localiser l’adresse ».</Text></Card>
+              )}
+              <Flex gap={2} wrap="wrap">
+                <Button as={IntentLink} intent="create" params={{ type: 'partner' }} tone="primary" text="+ Ajouter un partenaire" />
+                <Button mode="ghost" text="Synchroniser la carte" disabled={Boolean(busy)} onClick={syncMap} />
+              </Flex>
             </Stack>
           </Card>
 
@@ -219,7 +276,7 @@ function Dashboard() {
                         <Text size={1} weight="semibold">{g.title}</Text>
                       </Card>
                     </Box>
-                    <Badge tone={g.posted ? 'positive' : 'default'}>{g.posted ? 'Threads ✓' : 'site'}</Badge>
+                    <Badge tone={g.posted ? 'positive' : 'default'}>{g.posted ? '🧵 partagé' : 'pas partagé'}</Badge>
                     <Button as="a" href={`/guides/${g.slug}`} target="_blank" mode="bleed" text="Voir ↗" padding={2} />
                   </Flex>
                 ))}

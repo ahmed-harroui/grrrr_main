@@ -2,7 +2,7 @@
 
 import { defineConfig } from 'sanity'
 import { structureTool } from 'sanity/structure'
-import { AiAssistAction, PostThreadAction } from './sanity/actions'
+import { AiAssistAction, PostThreadAction, SyncHealthProfileAction, SyncPartnerAction } from './sanity/actions'
 import { dashboardPlugin } from './sanity/dashboard'
 import { schemaTypes } from './sanity/schemaTypes'
 import { dataset, projectId } from './lib/sanity/env'
@@ -22,11 +22,19 @@ export default defineConfig({
           .items([
             S.documentTypeListItem('guide').title('Guides'),
             S.documentTypeListItem('question').title('Questions en attente'),
+            S.divider(),
+            S.documentTypeListItem('partner').title('Partenaires (carte Grr Care)'),
+            S.documentTypeListItem('healthProfile').title('Profils santé (score de suivi)'),
           ]),
     }),
   ],
   schema: { types: schemaTypes },
   document: {
-    actions: (prev, context) => (context.schemaType === 'guide' ? [...prev, AiAssistAction, PostThreadAction] : prev),
+    actions: (prev, context) => {
+      if (context.schemaType === 'guide') return [...prev, AiAssistAction, PostThreadAction]
+      if (context.schemaType === 'partner') return [...prev, SyncPartnerAction]
+      if (context.schemaType === 'healthProfile') return [...prev, SyncHealthProfileAction]
+      return prev
+    },
   },
 })

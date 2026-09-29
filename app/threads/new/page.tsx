@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
+import { SiteFooter } from '@/components/site-footer'
 import { SiteHeader } from '@/components/site-header'
 import { getCurrentProfile } from '@/lib/supabase/server'
 import { NewThreadForm } from './new-thread-form'
@@ -22,6 +23,7 @@ export default async function NewThreadPage() {
         <p className="auth-lede">A piece of history, a cultural tradition, a surprising fact or a little story about the animals we love. Keep it short, true and kind.</p>
         <NewThreadForm isAdmin={profile.role === 'admin'} />
       </section>
+      <SiteFooter />
     </main>
   )
 }

@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { PortableText } from 'next-sanity'
 import { ArrowLeft, Stethoscope } from 'lucide-react'
+import { SiteFooter } from '@/components/site-footer'
 import { SiteHeader } from '@/components/site-header'
 import { getAllGuides, getGuide } from '@/lib/content/store'
 
@@ -31,6 +32,7 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
         <div className="guide-body"><PortableText value={guide.body} /></div>
         {guide.vetNote && <aside className="guide-vet"><Stethoscope size={20} /><p><strong>When to see a vet.</strong> {guide.vetNote}</p></aside>}
       </article>
+      <SiteFooter />
     </main>
   )
 }

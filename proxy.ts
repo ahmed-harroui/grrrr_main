@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { supabaseConfigured, supabaseKey, supabaseUrl } from './lib/supabase/env'
 
 /**
- * 1. Password-protects the Studio and its AI/Threads endpoints (they spend API credit and post publicly).
+ * 1. Password-protects the Studio and its AI/sharing endpoints (they spend API credit and post publicly).
  *    Set STUDIO_USER and STUDIO_PASSWORD; without them the Studio is locked outside local dev.
  * 2. Keeps visitors' Supabase sessions fresh on every other page.
  */
