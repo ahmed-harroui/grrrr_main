@@ -56,8 +56,9 @@ export async function saveGeneratedGuide(generated: GeneratedGuide, question: st
   return { id, slug }
 }
 
+/** The questions most asked in the GRRR Care app come first; then the oldest. */
 export async function nextQuestions(count: number): Promise<{ _id: string; text: string }[]> {
-  return writeClient().fetch(`*[_type == "question" && ${PUBLISHED} && used != true] | order(_createdAt asc)[0...$count] { _id, text }`, { count })
+  return writeClient().fetch(`*[_type == "question" && ${PUBLISHED} && used != true] | order(coalesce(asks, 1) desc, _createdAt asc)[0...$count] { _id, text }`, { count })
 }
 
 export const ENGINE_SETTINGS_ID = 'engineSettings'

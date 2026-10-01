@@ -8,7 +8,7 @@ type Stats = {
   published: number
   drafts: { _id: string; title?: string; _updatedAt: string; isNew: boolean }[]
   latest: { _id: string; title: string; slug: string; _createdAt: string; posted: boolean }[]
-  queue: { _id: string; text: string }[]
+  queue: { _id: string; text: string; asks?: number; source?: string }[]
   threadsPosted: number
   threadsPending: number
   settings: { paused?: boolean; autoPublish?: boolean; guidesPerRun?: number } | null
@@ -25,7 +25,7 @@ const STATS_QUERY = `{
   "latest": *[_type == "guide" && !(_id in path("drafts.**"))] | order(_createdAt desc)[0...5] {
     _id, title, "slug": slug.current, _createdAt, "posted": defined(threadPostedAt)
   },
-  "queue": *[_type == "question" && !(_id in path("drafts.**")) && used != true] | order(_createdAt asc) { _id, text },
+  "queue": *[_type == "question" && !(_id in path("drafts.**")) && used != true] | order(coalesce(asks, 1) desc, _createdAt asc) { _id, text, asks, source },
   "threadsPosted": count(*[_type == "guide" && !(_id in path("drafts.**")) && defined(threadPostedAt)]),
   "threadsPending": count(*[_type == "guide" && !(_id in path("drafts.**")) && count(thread) > 0 && !defined(threadPostedAt)]),
   "settings": *[_id == "engineSettings"][0],
@@ -248,7 +248,7 @@ function Dashboard() {
               <Stack gap={3}>
                 <Heading size={1}>Prochaines questions</Heading>
                 <Text size={1} muted>
-                  {stats.queue.length ? `Environ ${weeksLeft} semaine(s) de guides. Quand la liste est vide, l’IA ajoute 8 idées toute seule.` : 'Vide : l’IA ajoutera 8 idées au prochain passage.'}
+                  {stats.queue.length ? `Environ ${weeksLeft} semaine(s) de guides. Les plus demandées dans l’app passent en premier. Quand la liste est vide, l’IA ajoute 8 idées toute seule.` : 'Vide : l’IA ajoutera 8 idées au prochain passage.'}
                 </Text>
                 <Flex gap={2}>
                   <Box flex={1}><TextInput value={newQuestion} placeholder="Ajouter une question…" onChange={(e) => setNewQuestion(e.currentTarget.value)} onKeyDown={(e) => e.key === 'Enter' && addQuestion()} /></Box>
@@ -258,6 +258,7 @@ function Dashboard() {
                   <Flex key={q._id} align="center" gap={2}>
                     <Text size={1} muted>{i + 1}.</Text>
                     <Box flex={1}><Text size={1}>{q.text}</Text></Box>
+                    {(q.source === 'app' || (q.asks ?? 1) > 1) && <Badge tone={(q.asks ?? 1) > 1 ? 'primary' : 'default'} title="Nombre de fois où cette question a été posée dans l’app GRRR Care">📱 ×{q.asks ?? 1}</Badge>}
                     <Button mode="bleed" tone="critical" text="✕" padding={2} title="Supprimer" onClick={() => removeQuestion(q._id)} />
                   </Flex>
                 ))}
