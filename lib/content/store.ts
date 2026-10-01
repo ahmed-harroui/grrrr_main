@@ -58,7 +58,7 @@ export async function saveGeneratedGuide(generated: GeneratedGuide, question: st
 
 /** The questions most asked in the GRRR Care app come first; then the oldest. */
 export async function nextQuestions(count: number): Promise<{ _id: string; text: string }[]> {
-  return writeClient().fetch(`*[_type == "question" && ${PUBLISHED} && used != true] | order(coalesce(asks, 1) desc, _createdAt asc)[0...$count] { _id, text }`, { count })
+  return writeClient().fetch(`*[_type == "question" && ${PUBLISHED}] | order(coalesce(asks, 1) desc, _createdAt asc)[0...$count] { _id, text }`, { count })
 }
 
 export const ENGINE_SETTINGS_ID = 'engineSettings'
@@ -74,21 +74,22 @@ export async function getEngineSettings(): Promise<EngineSettings> {
   }
 }
 
-/** Every question and guide title so far — used to keep new question ideas fresh. */
+/** Every queued question, and the title and question of every guide (drafts too) — used to keep new question ideas fresh. */
 export async function coveredTopics(): Promise<string[]> {
-  const { questions, titles } = await writeClient().fetch<{ questions: string[]; titles: string[] }>(
-    `{ "questions": *[_type == "question" && ${PUBLISHED}].text, "titles": *[_type == "guide"].title }`,
+  const { questions, guides } = await writeClient().fetch<{ questions: string[]; guides: { title?: string; question?: string }[] }>(
+    `{ "questions": *[_type == "question" && ${PUBLISHED}].text, "guides": *[_type == "guide"] { title, question } }`,
   )
-  return [...new Set([...questions, ...titles].filter(Boolean))]
+  return [...new Set([...questions, ...guides.flatMap((g) => [g.title, g.question])].filter((t): t is string => Boolean(t)))]
 }
 
-export async function markQuestionUsed(questionId: string, guideId: string) {
-  await writeClient().patch(questionId).set({ used: true, guide: { _type: 'reference', _ref: guideId, _weak: true } }).commit()
+/** A question leaves the queue once its guide is written: the guide keeps the question it came from. */
+export async function removeQuestion(questionId: string) {
+  await writeClient().delete(questionId)
 }
 
 export async function addQuestions(texts: string[]) {
   const tx = writeClient().transaction()
-  for (const text of texts) tx.create({ _type: 'question', text, used: false })
+  for (const text of texts) tx.create({ _type: 'question', text })
   await tx.commit()
 }
 

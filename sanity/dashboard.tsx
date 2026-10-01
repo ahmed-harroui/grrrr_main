@@ -25,7 +25,7 @@ const STATS_QUERY = `{
   "latest": *[_type == "guide" && !(_id in path("drafts.**"))] | order(_createdAt desc)[0...5] {
     _id, title, "slug": slug.current, _createdAt, "posted": defined(threadPostedAt)
   },
-  "queue": *[_type == "question" && !(_id in path("drafts.**")) && used != true] | order(coalesce(asks, 1) desc, _createdAt asc) { _id, text, asks, source },
+  "queue": *[_type == "question" && !(_id in path("drafts.**"))] | order(coalesce(asks, 1) desc, _createdAt asc) { _id, text, asks, source },
   "threadsPosted": count(*[_type == "guide" && !(_id in path("drafts.**")) && defined(threadPostedAt)]),
   "threadsPending": count(*[_type == "guide" && !(_id in path("drafts.**")) && count(thread) > 0 && !defined(threadPostedAt)]),
   "settings": *[_id == "engineSettings"][0],
@@ -125,7 +125,7 @@ function Dashboard() {
 
   async function addQuestion() {
     if (!newQuestion.trim()) return
-    await client.create({ _type: 'question', text: newQuestion.trim(), used: false })
+    await client.create({ _type: 'question', text: newQuestion.trim() })
     setNewQuestion('')
     refresh()
   }

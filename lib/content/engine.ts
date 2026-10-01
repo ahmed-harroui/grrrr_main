@@ -1,7 +1,7 @@
 import { AiDeclinedError, generateGuide, suggestQuestions } from './ai'
 import { adminConfigured } from '../supabase/admin'
 import { shareGuideThread, syncGuideKnowledge } from './share'
-import { addQuestions, coveredTopics, existingTitles, getEngineSettings, guidesPendingThread, markQuestionUsed, nextQuestions, publishedGuides, saveGeneratedGuide } from './store'
+import { addQuestions, coveredTopics, existingTitles, getEngineSettings, guidesPendingThread, nextQuestions, publishedGuides, removeQuestion, saveGeneratedGuide } from './store'
 
 /** How many new question ideas Claude adds when the queue runs empty (≈ 2 months at one guide a week). */
 export const QUEUE_REFILL = 8
@@ -29,7 +29,7 @@ export async function generateGuides({ questions, count, publish, log = console.
     try {
       const guide = await generateGuide(question.text, await existingTitles())
       const { id, slug } = await saveGeneratedGuide(guide, question.text, publish)
-      if (question._id) await markQuestionUsed(question._id, id)
+      if (question._id) await removeQuestion(question._id)
       created.push({ title: guide.title, id, slug, published: publish })
       log(`   ✓ ${guide.title} → ${publish ? 'published' : 'draft to review in /studio'} (/guides/${slug})`)
     } catch (err) {
