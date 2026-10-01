@@ -3,6 +3,7 @@ import { DashboardIcon } from '@sanity/icons/Dashboard'
 import { Badge, Box, Button, Card, Container, Flex, Grid, Heading, Select, Spinner, Stack, Switch, Text, TextInput } from '@sanity/ui'
 import { definePlugin, useClient } from 'sanity'
 import { IntentLink } from 'sanity/router'
+import { PARTNER_CATEGORIES, PARTNER_FORM_URL, type PendingPartner } from '../lib/partners/constants'
 
 type Stats = {
   published: number
@@ -63,13 +64,24 @@ function Dashboard() {
   const [busy, setBusy] = useState<string | null>(null)
   const [log, setLog] = useState<{ ok: boolean; lines: string[] } | null>(null)
   const [newQuestion, setNewQuestion] = useState('')
+  const [applications, setApplications] = useState<PendingPartner[]>([])
 
   const refresh = useCallback(() => client.fetch<Stats>(STATS_QUERY).then(setStats), [client])
 
+  const partnersApi = useCallback(async (body: { action: 'pending' | 'publish' | 'reject'; id?: string }) => {
+    const res = await fetch('/api/studio/partners', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
+    const json = (await res.json().catch(() => ({}))) as { pending?: PendingPartner[]; name?: string; located?: boolean; error?: string }
+    if (!res.ok) throw new Error(json.error ?? `Erreur ${res.status}`)
+    return json
+  }, [])
+  // Applications live in Supabase, not Sanity; without SUPABASE_SECRET_KEY the list just stays empty
+  const loadApplications = useCallback(() => partnersApi({ action: 'pending' }).then((r) => setApplications(r.pending ?? [])).catch(() => setApplications([])), [partnersApi])
+
   useEffect(() => {
     refresh()
+    loadApplications()
     fetch('/api/studio/engine').then((r) => r.json()).then(setConfig).catch(() => setConfig(null))
-  }, [refresh])
+  }, [refresh, loadApplications])
 
   async function saveSetting(patch: Record<string, unknown>) {
     await client.createIfNotExists({ _id: 'engineSettings', _type: 'engineSettings' })
@@ -105,6 +117,21 @@ function Dashboard() {
       setLog({ ok: false, lines: [`✗ ${err instanceof Error ? err.message : String(err)}`] })
     } finally {
       setBusy(null)
+    }
+  }
+
+  async function decide(application: PendingPartner, action: 'publish' | 'reject') {
+    setBusy(action === 'publish' ? 'Publication sur la carte' : 'Suppression de la demande'); setLog(null)
+    try {
+      const result = await partnersApi({ action, id: application.id })
+      setLog({ ok: true, lines: [action === 'reject'
+        ? `✓ Demande de ${application.name} refusée et supprimée.`
+        : result.located ? `✓ ${application.name} est maintenant sur la carte Grr Care.` : `⚠️ ${application.name} est publié, mais son adresse est introuvable : il n’apparaîtra pas sur la carte tant qu’elle n’est pas corrigée.`] })
+    } catch (err) {
+      setLog({ ok: false, lines: [`✗ ${err instanceof Error ? err.message : String(err)}`] })
+    } finally {
+      setBusy(null)
+      loadApplications()
     }
   }
 
@@ -225,6 +252,35 @@ function Dashboard() {
                 <Button as={IntentLink} intent="create" params={{ type: 'partner' }} tone="primary" text="+ Ajouter un partenaire" />
                 <Button mode="ghost" text="Synchroniser la carte" disabled={Boolean(busy)} onClick={syncMap} />
               </Flex>
+            </Stack>
+          </Card>
+
+          {/* ---------- applications from the public form ---------- */}
+          <Card padding={4} radius={3} border tone={applications.length ? 'caution' : 'default'}>
+            <Stack gap={3}>
+              <Flex align="center" justify="space-between" gap={3} wrap="wrap">
+                <Heading size={1}>Demandes de partenaires ({applications.length})</Heading>
+                <Button mode="ghost" text="Copier le lien du formulaire" onClick={() => navigator.clipboard.writeText(PARTNER_FORM_URL)} />
+              </Flex>
+              <Text size={1} muted>Envoie ce lien aux établissements : <a href={PARTNER_FORM_URL} target="_blank" rel="noreferrer">{PARTNER_FORM_URL}</a>. Ceux qui remplissent le formulaire et confirment leur e-mail arrivent ici ; rien n’apparaît sur la carte sans ton accord.</Text>
+              {applications.length === 0 && <Text size={1} muted>Aucune demande en attente.</Text>}
+              {applications.map((a) => (
+                <Card key={a.id} padding={3} radius={2} border>
+                  <Stack gap={3}>
+                    <Flex align="center" gap={2} wrap="wrap">
+                      <Text weight="semibold">{a.name}</Text>
+                      <Badge>{PARTNER_CATEGORIES.find((c) => c.value === a.category)?.title ?? a.category}</Badge>
+                      {!a.located && <Badge tone="caution">adresse non localisée</Badge>}
+                    </Flex>
+                    <Text size={1} muted>{[a.address, a.phone, a.email, a.website].filter(Boolean).join(' · ')}</Text>
+                    {a.description && <Text size={1}>{a.description}</Text>}
+                    <Flex gap={2} wrap="wrap">
+                      <Button tone="positive" text="Publier sur la carte" disabled={Boolean(busy)} onClick={() => decide(a, 'publish')} />
+                      <Button mode="ghost" tone="critical" text="Refuser" disabled={Boolean(busy)} onClick={() => decide(a, 'reject')} />
+                    </Flex>
+                  </Stack>
+                </Card>
+              ))}
             </Stack>
           </Card>
 
