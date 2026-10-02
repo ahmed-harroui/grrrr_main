@@ -3,7 +3,7 @@ import { sanityConfigured } from '../sanity/env'
 import { aiBlocksToPortable, key } from './portable-text'
 import type { GeneratedGuide, Guide } from './schema'
 
-const GUIDE_FIELDS = `_id, _createdAt, title, "slug": slug.current, category, question, excerpt, readMinutes, body, vetNote, thread, threadPostedAt`
+const GUIDE_FIELDS = `_id, _createdAt, title, "slug": slug.current, category, animal, question, excerpt, readMinutes, body, vetNote, thread, threadPostedAt`
 const PUBLISHED = `!(_id in path("drafts.**"))`
 
 // ---------- website reads (published only) ----------
@@ -45,6 +45,7 @@ export async function saveGeneratedGuide(generated: GeneratedGuide, question: st
     title: generated.title,
     slug: { _type: 'slug', current: slug },
     category: generated.category,
+    animal: generated.animal,
     question,
     excerpt: generated.excerpt,
     readMinutes: generated.readMinutes,
@@ -62,7 +63,7 @@ export async function nextQuestions(count: number): Promise<{ _id: string; text:
 }
 
 export const ENGINE_SETTINGS_ID = 'engineSettings'
-export type EngineSettings = { paused: boolean; autoPublish: boolean; guidesPerRun: number }
+export type EngineSettings = { paused: boolean; autoPublish: boolean; guidesPerRun: number; threadsPerRun: number }
 
 /** Settings chosen in the Studio dashboard; falls back to AUTO_PUBLISH until they've been saved once. */
 export async function getEngineSettings(): Promise<EngineSettings> {
@@ -71,7 +72,17 @@ export async function getEngineSettings(): Promise<EngineSettings> {
     paused: doc?.paused ?? false,
     autoPublish: doc?.autoPublish ?? process.env.AUTO_PUBLISH === 'true',
     guidesPerRun: Math.min(Math.max(doc?.guidesPerRun ?? 1, 1), 5),
+    // "Did you know" threads posted each run, on the animals with the fewest threads (0 = none)
+    threadsPerRun: Math.min(Math.max(doc?.threadsPerRun ?? 2, 0), 5),
   }
+}
+
+/** How many guides (drafts too) each animal family has, to pick the least covered next. */
+export async function guidesPerAnimal(): Promise<Record<string, number>> {
+  const animals = await writeClient().fetch<(string | null)[]>(`*[_type == "guide"].animal`)
+  const counts: Record<string, number> = {}
+  for (const animal of animals) if (animal) counts[animal] = (counts[animal] ?? 0) + 1
+  return counts
 }
 
 /** Every queued question, and the title and question of every guide (drafts too) — used to keep new question ideas fresh. */

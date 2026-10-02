@@ -1,15 +1,25 @@
-import { AiDeclinedError, generateGuide, suggestQuestions } from './ai'
+import { AiDeclinedError, generateFactThread, generateGuide, suggestQuestions } from './ai'
+import { ANIMAL_KEYS, ANIMALS, type Animal } from '../community/limits'
 import { adminConfigured } from '../supabase/admin'
-import { shareGuideThread, syncGuideKnowledge } from './share'
-import { addQuestions, coveredTopics, existingTitles, getEngineSettings, guidesPendingThread, nextQuestions, publishedGuides, removeQuestion, saveGeneratedGuide } from './store'
+import { officialThreadsSoFar, postFactThread, shareGuideThread, syncGuideKnowledge } from './share'
+import { addQuestions, coveredTopics, existingTitles, getEngineSettings, guidesPendingThread, guidesPerAnimal, nextQuestions, publishedGuides, removeQuestion, saveGeneratedGuide } from './store'
 
 /** How many new question ideas Claude adds when the queue runs empty (≈ 2 months at one guide a week). */
 export const QUEUE_REFILL = 8
 
 type Log = (line: string) => void
 
+/** The animal families with the fewest items first (ties in a random order), `count` of them. */
+function leastCovered(counts: Record<string, number>, count: number): Animal[] {
+  const families = ANIMAL_KEYS.filter((a) => a !== 'all')
+    .map((animal) => ({ animal, n: counts[animal] ?? 0, tie: Math.random() }))
+    .sort((a, b) => a.n - b.n || a.tie - b.tie)
+    .map((item) => item.animal)
+  return Array.from({ length: count }, (_, i) => families[i % families.length])
+}
+
 export async function refillQueue(log: Log = console.log) {
-  const ideas = await suggestQuestions(QUEUE_REFILL, await coveredTopics())
+  const ideas = await suggestQuestions(QUEUE_REFILL, await coveredTopics(), leastCovered(await guidesPerAnimal(), QUEUE_REFILL))
   await addQuestions(ideas)
   log(`💡 Added ${ideas.length} question ideas:\n${ideas.map((q) => `   • ${q}`).join('\n')}`)
   return ideas
@@ -67,13 +77,37 @@ export async function syncAllKnowledge({ log = console.log }: { log?: Log } = {}
   return guides.length
 }
 
+/** "Did you know" threads posted straight on the feed, one per animal family with the fewest threads. */
+export async function postFactThreads({ count, log = console.log }: { count: number; log?: Log }) {
+  if (!adminConfigured()) {
+    log(NOT_CONFIGURED)
+    return 0
+  }
+  const { perAnimal, recentTitles } = await officialThreadsSoFar()
+  let posted = 0
+  for (const animal of leastCovered(perAnimal, count)) {
+    try {
+      const thread = await generateFactThread('', recentTitles, animal)
+      await postFactThread(thread)
+      recentTitles.unshift(thread.title)
+      posted++
+      log(`🧵 ${ANIMALS[thread.animal]} · ${thread.title}`)
+    } catch (err) {
+      if (!(err instanceof AiDeclinedError) && !(err instanceof Error && err.message.startsWith('Incomplete'))) throw err
+      log(`   ✗ ${err.message} Skipping.`)
+    }
+  }
+  return posted
+}
+
 /** The scheduled run: obeys the settings chosen in the Studio dashboard. */
 export async function scheduledRun({ log = console.log }: { log?: Log } = {}) {
   const settings = await getEngineSettings()
   if (settings.paused) {
-    log('⏸  Automatic mode is paused in the Studio dashboard — no new guide this time.')
+    log('⏸  Automatic mode is paused in the Studio dashboard — no new guide or thread this time.')
   } else {
     await generateGuides({ count: settings.guidesPerRun, publish: settings.autoPublish, log })
+    if (settings.threadsPerRun > 0) await postFactThreads({ count: settings.threadsPerRun, log })
   }
   await sharePendingGuides({ log })
 }

@@ -10,7 +10,8 @@
  *   pnpm content knowledge                               # resend every published guide to the assistant
  *   pnpm content run --count 1 [--publish]               # generate, then share what is published
  *   pnpm content scheduled                               # the weekly job: follows the Studio dashboard settings
- *   pnpm content ideas                                   # add AI question ideas to the queue
+ *   pnpm content ideas                                   # add AI question ideas to the queue (least covered animals first)
+ *   pnpm content threads --count 3                       # post AI "did you know" threads on the least covered animals
  *   pnpm content import                                  # one-off: move content/guides/*.json + questions.txt into Sanity
  *
  * AUTO_PUBLISH=true has the same effect as --publish.
@@ -19,7 +20,7 @@ import './load-env'
 import fs from 'node:fs'
 import path from 'node:path'
 import Anthropic from '@anthropic-ai/sdk'
-import { generateGuides, refillQueue, scheduledRun, sharePendingGuides, syncAllKnowledge } from '../lib/content/engine'
+import { generateGuides, postFactThreads, refillQueue, scheduledRun, sharePendingGuides, syncAllKnowledge } from '../lib/content/engine'
 import { aiBlocksToPortable, key } from '../lib/content/portable-text'
 import type { AiBlock } from '../lib/content/schema'
 import { addQuestions } from '../lib/content/store'
@@ -86,11 +87,14 @@ async function main() {
     case 'ideas':
       await refillQueue()
       break
+    case 'threads':
+      await postFactThreads({ count })
+      break
     case 'import':
       await importFiles()
       break
     default:
-      console.log('Usage: pnpm content <generate|share|knowledge|run|scheduled|ideas|import> [questions…] [--count N] [--publish]')
+      console.log('Usage: pnpm content <generate|share|knowledge|run|scheduled|ideas|threads|import> [questions…] [--count N] [--publish]')
       process.exitCode = command ? 1 : 0
   }
 }

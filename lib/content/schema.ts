@@ -1,6 +1,8 @@
 import { z } from 'zod'
+import { ANIMAL_KEYS } from '../community/limits'
 
-export const CATEGORIES = ['BEHAVIOUR', 'PUPPY LIFE', 'WELLBEING', 'HEALTH', 'NUTRITION', 'TRAINING', 'CATS'] as const
+/** Topics, whatever the animal (PUPPY LIFE and CATS are kept for the first guides). */
+export const CATEGORIES = ['BEHAVIOUR', 'HEALTH', 'NUTRITION', 'WELLBEING', 'TRAINING', 'HABITAT', 'GROOMING', 'SAFETY', 'YOUNG ANIMALS', 'PUPPY LIFE', 'CATS'] as const
 
 /** A paragraph-level block as Claude reads and writes it. `text` may use **bold** and *italic*. */
 export const AiBlockSchema = z.object({
@@ -12,6 +14,7 @@ export type AiBlock = z.infer<typeof AiBlockSchema>
 export const GeneratedGuideSchema = z.object({
   title: z.string(),
   category: z.enum(CATEGORIES),
+  animal: z.enum(ANIMAL_KEYS).describe('The animal family the guide is about; "all" only if it truly applies to every pet'),
   excerpt: z.string().describe('One or two sentences shown on cards and as the meta description'),
   readMinutes: z.number().int(),
   body: z.array(AiBlockSchema).describe('The guide body: 4–6 h2 sections, each followed by normal paragraphs (bullets only where they genuinely help)'),
@@ -42,7 +45,7 @@ export const FactThreadSchema = z.object({
   title: z.string().describe('Short, intriguing title, max 100 characters'),
   body: z.string().describe('The thread text, 400–1200 characters, short paragraphs separated by blank lines'),
   category: z.enum(['fact', 'history', 'culture', 'science', 'story', 'tip']),
-  animal: z.enum(['dog', 'cat', 'all']),
+  animal: z.enum(ANIMAL_KEYS),
 })
 
 /** Guide as stored in Sanity. */
@@ -52,6 +55,8 @@ export type Guide = {
   title: string
   slug: string
   category: string
+  /** The animal family (older guides have none: it is guessed from the text) */
+  animal?: string
   question?: string
   excerpt: string
   readMinutes: number

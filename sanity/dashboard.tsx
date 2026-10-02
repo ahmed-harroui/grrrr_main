@@ -12,7 +12,7 @@ type Stats = {
   queue: { _id: string; text: string; asks?: number; source?: string }[]
   threadsPosted: number
   threadsPending: number
-  settings: { paused?: boolean; autoPublish?: boolean; guidesPerRun?: number } | null
+  settings: { paused?: boolean; autoPublish?: boolean; guidesPerRun?: number; threadsPerRun?: number } | null
   partners: number
   partnersUnlocated: string[]
   healthProfiles: { _id: string; species: string; label?: string; status?: string }[]
@@ -89,7 +89,7 @@ function Dashboard() {
     await refresh()
   }
 
-  async function runAction(action: 'generate' | 'ideas' | 'share' | 'knowledge', label: string) {
+  async function runAction(action: 'generate' | 'ideas' | 'share' | 'knowledge' | 'threads', label: string) {
     setBusy(label); setLog(null)
     try {
       const res = await fetch('/api/studio/engine', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action }) })
@@ -164,7 +164,7 @@ function Dashboard() {
 
   if (!stats) return <Flex padding={6} justify="center"><Spinner muted /></Flex>
 
-  const settings = { paused: false, autoPublish: false, guidesPerRun: 1, ...stats.settings }
+  const settings = { paused: false, autoPublish: false, guidesPerRun: 1, threadsPerRun: 2, ...stats.settings }
   const toReview = stats.drafts.filter((d) => d.isNew)
   const edited = stats.drafts.filter((d) => !d.isNew)
   const weeksLeft = Math.floor(stats.queue.length / settings.guidesPerRun)
@@ -195,7 +195,7 @@ function Dashboard() {
               <Text size={1} muted>
                 {settings.paused
                   ? 'Aucun guide ne sera écrit automatiquement tant que le mode est en pause.'
-                  : `Prochain passage : ${fmt(nextRun())} — ${settings.guidesPerRun} guide${settings.guidesPerRun > 1 ? 's' : ''}, ${settings.autoPublish ? 'publié directement' : 'en brouillon à relire'}.`}
+                  : `Prochain passage : ${fmt(nextRun())} — ${settings.guidesPerRun} guide${settings.guidesPerRun > 1 ? 's' : ''}, ${settings.autoPublish ? 'publié directement' : 'en brouillon à relire'}${settings.threadsPerRun ? `, et ${settings.threadsPerRun} fil${settings.threadsPerRun > 1 ? 's' : ''} « Le savais-tu » publié${settings.threadsPerRun > 1 ? 's' : ''} sur le site et dans les apps` : ''}. Les animaux les moins couverts passent en premier (chiens, chats, lapins, rongeurs, oiseaux, poissons, reptiles, chevaux, furets, basse-cour).`}
               </Text>
               <Flex align="center" gap={3}>
                 <Switch checked={!settings.paused} onChange={() => saveSetting({ paused: !settings.paused })} />
@@ -213,6 +213,14 @@ function Dashboard() {
                 </Box>
                 <Text size={1}>guide(s) par semaine · environ {(settings.guidesPerRun * 0.1 * 4.3).toFixed(2)} $ / mois</Text>
               </Flex>
+              <Flex align="center" gap={3}>
+                <Box style={{ width: 90 }}>
+                  <Select value={String(settings.threadsPerRun)} onChange={(e) => saveSetting({ threadsPerRun: Number(e.currentTarget.value) })}>
+                    {[0, 1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{n}</option>)}
+                  </Select>
+                </Box>
+                <Text size={1}>fil(s) « Le savais-tu » par semaine, sur un animal différent à chaque fois · environ {(settings.threadsPerRun * 0.02 * 4.3).toFixed(2)} $ / mois</Text>
+              </Flex>
             </Stack>
           </Card>
 
@@ -223,7 +231,8 @@ function Dashboard() {
               {config && !config.aiConfigured && <Card padding={3} radius={2} tone="critical"><Text size={1}>ANTHROPIC_API_KEY manque sur le serveur : les actions IA ne marcheront pas.</Text></Card>}
               <Flex gap={2} wrap="wrap">
                 <Button tone="primary" text="Écrire un guide maintenant" disabled={Boolean(busy)} onClick={() => runAction('generate', 'Écriture du guide')} />
-                <Button mode="ghost" text="Ajouter 8 idées de questions" disabled={Boolean(busy)} onClick={() => runAction('ideas', 'Recherche d’idées')} />
+                <Button mode="ghost" text="Écrire un fil « Le savais-tu »" disabled={Boolean(busy) || !config?.communityConfigured} onClick={() => runAction('threads', 'Écriture du fil')} title="Un fait vérifié sur l’animal qui a le moins de fils, publié sur le site et dans les apps" />
+                <Button mode="ghost" text="Ajouter 8 idées de questions" disabled={Boolean(busy)} onClick={() => runAction('ideas', 'Recherche d’idées')} title="Réparties sur tous les animaux, les moins couverts d’abord" />
                 <Button mode="ghost" text={`Partager les fils en attente (${stats.threadsPending})`} disabled={Boolean(busy) || !config?.communityConfigured || stats.threadsPending === 0} onClick={() => runAction('share', 'Partage sur le site')} />
                 <Button mode="ghost" text="Mettre à jour l’assistant" disabled={Boolean(busy) || !config?.communityConfigured} onClick={() => runAction('knowledge', 'Envoi des guides à l’assistant')} title="Renvoie tous les guides publiés à l’assistant GRRR Care (après des modifications)" />
               </Flex>

@@ -25,7 +25,7 @@ create table public.grr_threads (
   title         text not null check (char_length(title) between 3 and 120),
   body          text not null check (char_length(body) between 10 and 1500),
   category      text not null default 'fact' check (category in ('fact', 'history', 'culture', 'science', 'story', 'tip')),
-  animal        text not null default 'all' check (animal in ('dog', 'cat', 'all')),
+  animal        text not null default 'all' check (animal in ('all', 'dog', 'cat', 'rabbit', 'rodent', 'bird', 'fish', 'reptile', 'horse', 'ferret', 'farm')),
   is_official   boolean not null default false,   -- posted by Grr (admins only)
   status        text not null default 'published' check (status in ('published', 'hidden')),
   like_count    integer not null default 0,

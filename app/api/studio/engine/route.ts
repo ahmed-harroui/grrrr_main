@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { generateGuides, refillQueue, sharePendingGuides, syncAllKnowledge } from '@/lib/content/engine'
+import { generateGuides, postFactThreads, refillQueue, sharePendingGuides, syncAllKnowledge } from '@/lib/content/engine'
 import { getEngineSettings } from '@/lib/content/store'
 import { adminConfigured } from '@/lib/supabase/admin'
 
@@ -11,7 +11,7 @@ export function GET() {
 }
 
 export async function POST(request: Request) {
-  const { action } = (await request.json()) as { action?: 'generate' | 'ideas' | 'share' | 'knowledge' }
+  const { action } = (await request.json()) as { action?: 'generate' | 'ideas' | 'share' | 'knowledge' | 'threads' }
   const lines: string[] = []
   const log = (line: string) => lines.push(line)
   try {
@@ -28,6 +28,10 @@ export async function POST(request: Request) {
       case 'share': {
         const shared = await sharePendingGuides({ log })
         return NextResponse.json({ ok: true, log: lines, shared })
+      }
+      case 'threads': {
+        const posted = await postFactThreads({ count: 1, log })
+        return NextResponse.json({ ok: posted > 0, log: lines, posted })
       }
       case 'knowledge': {
         const synced = await syncAllKnowledge({ log })

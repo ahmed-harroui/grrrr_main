@@ -1,6 +1,7 @@
 import { DocumentTextIcon } from '@sanity/icons/DocumentText'
 import { defineArrayMember, defineField, defineType } from 'sanity'
 import { CATEGORIES } from '../../lib/content/schema'
+import { ANIMALS } from '../../lib/community/limits'
 
 export const guide = defineType({
   name: 'guide',
@@ -65,6 +66,15 @@ export const guide = defineType({
     defineField({ name: 'threadPostedAt', title: 'Partagé sur le site le', type: 'datetime', group: 'threads', readOnly: true }),
     defineField({ name: 'slug', title: 'Adresse (slug)', type: 'slug', group: 'settings', options: { source: 'title', maxLength: 60 }, validation: (r) => r.required() }),
     defineField({ name: 'category', title: 'Catégorie', type: 'string', group: 'settings', options: { list: [...CATEGORIES] }, validation: (r) => r.required() }),
+    defineField({
+      name: 'animal',
+      title: 'Animal',
+      type: 'string',
+      group: 'settings',
+      description: 'Son fil sur le site et l’assistant GRRR Care ciblent cet animal.',
+      options: { list: Object.entries(ANIMALS).map(([value, title]) => ({ value, title })) },
+      initialValue: 'all',
+    }),
     defineField({ name: 'readMinutes', title: 'Temps de lecture (min)', type: 'number', group: 'settings', initialValue: 5 }),
     defineField({ name: 'source', title: 'Origine', type: 'string', group: 'settings', readOnly: true, options: { list: [{ title: 'IA (automatique)', value: 'ai' }, { title: 'Studio', value: 'studio' }] }, initialValue: 'studio' }),
   ],

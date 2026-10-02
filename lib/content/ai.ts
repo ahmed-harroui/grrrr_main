@@ -2,13 +2,14 @@ import Anthropic from '@anthropic-ai/sdk'
 import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod'
 import type { z } from 'zod'
 import { REWRITE_MODES, type RewriteMode } from './modes'
+import { ANIMAL_DETAILS, ANIMAL_KEYS, type Animal } from '../community/limits'
 import { CATEGORIES, CritiqueSchema, FactThreadSchema, GeneratedGuideSchema, QuestionIdeasSchema, RewriteSchema, ThreadSchema, type AiBlock } from './schema'
 
 const MODEL = 'claude-opus-5'
 
-export const BRAND_VOICE = `You write for Grr, a warm, modern pet-life brand ("Better days together"). Its journal turns real questions from pet owners into genuinely useful guides.
+export const BRAND_VOICE = `You write for Grr, a warm, modern pet-life brand ("Better days together"). Its journal turns real questions from pet owners into genuinely useful guides, for every kind of pet: dogs and cats, but also rabbits, small rodents, birds, fish, reptiles, horses, ferrets and backyard farm animals.
 
-Voice: calm, knowledgeable, kind, a little playful — never clickbait, never preachy. British spelling. Short paragraphs, varied sentence rhythm, concrete images over abstractions. Practical advice a reader can act on today. Be accurate: where evidence is mixed, say so; never invent statistics, studies or quotes. Health topics must tell the reader when to see a vet.
+Voice: calm, knowledgeable, kind, a little playful — never clickbait, never preachy. British spelling. Short paragraphs, varied sentence rhythm, concrete images over abstractions. Practical advice a reader can act on today. Be accurate: where evidence is mixed, say so; never invent statistics, studies or quotes. Health topics must tell the reader when to see a vet (for rabbits, rodents, birds, reptiles and fish: a vet experienced with exotic pets). Never carry dog or cat advice over to another species without saying it applies.
 
 Body format: a list of blocks. Styles: "h2" section heading, "h3" sub-heading, "normal" paragraph, "blockquote" for one memorable line, "bullet"/"number" for list items. Inline **bold** and *italic* are allowed sparingly. No markdown headings, no bullet characters inside text.`
 
@@ -49,6 +50,8 @@ export function generateGuide(question: string, existingTitles: string[]) {
 
 Write a guide of roughly 700–1100 words, plus ${THREAD_RULES}
 
+Set "animal" to the family the question is about: ${ANIMAL_KEYS.map((a) => `"${a}" (${ANIMAL_DETAILS[a]})`).join(', ')}.
+
 Existing guide titles (don't duplicate their angle):
 ${existingTitles.map((t) => `- ${t}`).join('\n') || '(none yet)'}`,
   )
@@ -68,11 +71,13 @@ export function critiqueGuide(draft: Draft) {
   )
 }
 
-/** A short community thread: a historical, cultural or scientific fact about pets (admins only). */
-export function generateFactThread(topic: string, recentTitles: string[]) {
+/** A short community thread: a historical, cultural or scientific fact about pets — asked by an
+ * admin on the site, or by the weekly run for the animal families with the fewest threads. */
+export function generateFactThread(topic: string, recentTitles: string[], animal?: Animal) {
+  const about = animal && animal !== 'all' ? ANIMAL_DETAILS[animal] : 'any kind of pet (dogs, cats, rabbits, rodents, birds, fish, reptiles, horses, ferrets, farm animals)'
   return ask(
     FactThreadSchema,
-    `Write a short thread for the Grr community feed: a genuinely surprising, well-established fact, piece of history or cultural story about dogs or cats${topic.trim() ? `, on this theme: "${topic.trim()}"` : ' (pick the theme yourself)'}.
+    `Write a short thread for the Grr community feed: a genuinely surprising, well-established fact, piece of history or cultural story about ${about}${topic.trim() ? `, on this theme: "${topic.trim()}"` : ' (pick the theme yourself: biology, senses, history, record, famous animal, culture, science)'}. Set "animal" to the family it is about.
 
 It must be true and widely documented — if you are not confident about a detail (a date, a number, a name), leave it out rather than guess. Tell it like a story: a hook in the first line, then the context, then why it still matters to pet owners today. Plain text, no markdown, no hashtags, at most one emoji.
 
@@ -82,11 +87,17 @@ ${recentTitles.map((t) => `- ${t}`).join('\n') || '(none yet)'}`,
   )
 }
 
-/** Ideas for the question queue, when it runs empty. */
-export async function suggestQuestions(count: number, covered: string[]) {
+/** Ideas for the question queue, when it runs empty: one per animal family in `focus` (the least covered first). */
+export async function suggestQuestions(count: number, covered: string[], focus: Animal[] = []) {
+  const animals = focus.length ? focus : ANIMAL_KEYS.filter((a) => a !== 'all')
   const { questions } = await ask(
     QuestionIdeasSchema,
-    `Suggest ${count} new questions that real dog and cat owners genuinely ask (the kind typed into Google or asked at the vet), each worth a full practical guide. Phrase each as the owner would ask it, in English, first person ("my dog…", "my cat…"). Mix dogs and cats, seasons, life stages and these topics: ${CATEGORIES.join(', ')}.
+    `Suggest ${count} new questions that real pet owners genuinely ask (the kind typed into Google or asked at the vet), each worth a full practical guide. Phrase each as the owner would ask it, in English, first person ("my rabbit…", "my budgie…", "my dog…").
+
+Spread them over these animal families, in this order, one question each (start again from the top if there are more questions than families):
+${animals.map((a) => `- ${ANIMAL_DETAILS[a]}`).join('\n')}
+
+Vary the topics (${CATEGORIES.filter((c) => c !== 'CATS' && c !== 'PUPPY LIFE').join(', ')}), seasons and life stages; prefer what a new owner of that animal most needs to know.
 
 Do not repeat or closely overlap anything already covered:
 ${covered.map((t) => `- ${t}`).join('\n') || '(nothing yet)'}`,
