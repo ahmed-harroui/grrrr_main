@@ -9,7 +9,7 @@
  *   pnpm content share                                   # share published guides not yet shared
  *   pnpm content knowledge                               # resend every published guide to the assistant
  *   pnpm content run --count 1 [--publish]               # generate, then share what is published
- *   pnpm content scheduled                               # the weekly job: follows the Studio dashboard settings
+ *   pnpm content scheduled                               # the daily job: follows the Studio dashboard settings
  *   pnpm content ideas                                   # add AI question ideas to the queue (least covered animals first)
  *   pnpm content threads --count 3                       # post AI "did you know" threads on the least covered animals
  *   pnpm content import                                  # one-off: move content/guides/*.json + questions.txt into Sanity

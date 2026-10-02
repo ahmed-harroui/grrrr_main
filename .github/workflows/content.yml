@@ -1,8 +1,8 @@
-# Weekly run of the Grr content engine. It follows the settings of the Studio dashboard
-# (/studio → Tableau de bord): pause, guides per run, draft vs. direct publishing.
-# Each run writes guides from the oldest questions in the queue (refilling it with AI ideas when
-# empty), then shares every published guide not yet shared: its thread on the site's /threads feed,
-# the guide itself in the GRRR Care assistant's knowledge.
+# Daily run of the Grr content engine. It follows the settings of the Studio dashboard
+# (/studio → Tableau de bord): pause, guides and "did you know" threads per day, draft vs. direct
+# publishing. Each run writes guides from the queue (refilling it with AI ideas over every animal
+# when empty), posts the threads on the least covered animals, then shares every published guide
+# not yet shared: its thread on the site's /threads feed, the guide in the GRRR Care assistant.
 #
 # Repo settings → Secrets and variables → Actions:
 #   secrets:   ANTHROPIC_API_KEY, SANITY_API_WRITE_TOKEN, SUPABASE_SECRET_KEY
@@ -12,7 +12,7 @@ name: Content engine
 
 on:
   schedule:
-    - cron: '0 8 * * 1' # every Monday at 08:00 UTC
+    - cron: '0 8 * * *' # every day at 08:00 UTC (sanity/dashboard.tsx nextRun matches it)
   workflow_dispatch:
 
 concurrency:
@@ -30,7 +30,8 @@ jobs:
       NEXT_PUBLIC_SANITY_PROJECT_ID: ${{ vars.NEXT_PUBLIC_SANITY_PROJECT_ID }}
       NEXT_PUBLIC_SANITY_DATASET: ${{ vars.NEXT_PUBLIC_SANITY_DATASET }}
       # Not sensitive, so a variable is enough; a secret of the same name works too
-      NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}    steps:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
+    steps:
       - uses: actions/checkout@v4
 
       - uses: pnpm/action-setup@v4
@@ -42,5 +43,5 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - name: Weekly run
+      - name: Daily run
         run: pnpm content scheduled

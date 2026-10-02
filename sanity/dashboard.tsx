@@ -35,12 +35,10 @@ const STATS_QUERY = `{
   "healthProfiles": *[_type == "healthProfile" && !(_id in path("drafts.**"))] | order(species asc, minAgeMonths asc) { _id, species, "label": label.fr, status }
 }`
 
-/** Next Monday 08:00 UTC — must match the cron in .github/workflows/content.yml. */
+/** Next 08:00 UTC — must match the daily cron in .github/workflows/content.yml. */
 function nextRun(now = new Date()) {
   const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 8))
-  const days = (1 - d.getUTCDay() + 7) % 7
-  d.setUTCDate(d.getUTCDate() + days)
-  if (d <= now) d.setUTCDate(d.getUTCDate() + 7)
+  if (d <= now) d.setUTCDate(d.getUTCDate() + 1)
   return d
 }
 
@@ -167,7 +165,7 @@ function Dashboard() {
   const settings = { paused: false, autoPublish: false, guidesPerRun: 1, threadsPerRun: 2, ...stats.settings }
   const toReview = stats.drafts.filter((d) => d.isNew)
   const edited = stats.drafts.filter((d) => !d.isNew)
-  const weeksLeft = Math.floor(stats.queue.length / settings.guidesPerRun)
+  const daysLeft = Math.floor(stats.queue.length / settings.guidesPerRun)
 
   return (
     <Box overflow="auto" height="fill">
@@ -199,7 +197,7 @@ function Dashboard() {
               </Text>
               <Flex align="center" gap={3}>
                 <Switch checked={!settings.paused} onChange={() => saveSetting({ paused: !settings.paused })} />
-                <Text size={1}>Écrire des guides automatiquement chaque lundi</Text>
+                <Text size={1}>Écrire des guides et des fils automatiquement chaque jour</Text>
               </Flex>
               <Flex align="center" gap={3}>
                 <Switch checked={settings.autoPublish} onChange={() => saveSetting({ autoPublish: !settings.autoPublish })} />
@@ -211,7 +209,7 @@ function Dashboard() {
                     {[1, 2, 3].map((n) => <option key={n} value={n}>{n}</option>)}
                   </Select>
                 </Box>
-                <Text size={1}>guide(s) par semaine · environ {(settings.guidesPerRun * 0.1 * 4.3).toFixed(2)} $ / mois</Text>
+                <Text size={1}>guide(s) par jour · environ {(settings.guidesPerRun * 0.1 * 30).toFixed(2)} $ / mois</Text>
               </Flex>
               <Flex align="center" gap={3}>
                 <Box style={{ width: 90 }}>
@@ -219,7 +217,7 @@ function Dashboard() {
                     {[0, 1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{n}</option>)}
                   </Select>
                 </Box>
-                <Text size={1}>fil(s) « Le savais-tu » par semaine, sur un animal différent à chaque fois · environ {(settings.threadsPerRun * 0.02 * 4.3).toFixed(2)} $ / mois</Text>
+                <Text size={1}>fil(s) « Le savais-tu » par jour, sur un animal différent à chaque fois · environ {(settings.threadsPerRun * 0.02 * 30).toFixed(2)} $ / mois</Text>
               </Flex>
             </Stack>
           </Card>
@@ -313,7 +311,7 @@ function Dashboard() {
               <Stack gap={3}>
                 <Heading size={1}>Prochaines questions</Heading>
                 <Text size={1} muted>
-                  {stats.queue.length ? `Environ ${weeksLeft} semaine(s) de guides. Les plus demandées dans l’app passent en premier. Quand la liste est vide, l’IA ajoute 8 idées toute seule.` : 'Vide : l’IA ajoutera 8 idées au prochain passage.'}
+                  {stats.queue.length ? `Environ ${daysLeft} jour(s) de guides. Les plus demandées dans l’app passent en premier. Quand la liste est vide, l’IA ajoute 8 idées toute seule.` : 'Vide : l’IA ajoutera 8 idées au prochain passage.'}
                 </Text>
                 <Flex gap={2}>
                   <Box flex={1}><TextInput value={newQuestion} placeholder="Ajouter une question…" onChange={(e) => setNewQuestion(e.currentTarget.value)} onKeyDown={(e) => e.key === 'Enter' && addQuestion()} /></Box>

@@ -72,7 +72,7 @@ export function critiqueGuide(draft: Draft) {
 }
 
 /** A short community thread: a historical, cultural or scientific fact about pets — asked by an
- * admin on the site, or by the weekly run for the animal families with the fewest threads. */
+ * admin on the site, or by the daily run for the animal families with the fewest threads. */
 export function generateFactThread(topic: string, recentTitles: string[], animal?: Animal) {
   const about = animal && animal !== 'all' ? ANIMAL_DETAILS[animal] : 'any kind of pet (dogs, cats, rabbits, rodents, birds, fish, reptiles, horses, ferrets, farm animals)'
   return ask(
