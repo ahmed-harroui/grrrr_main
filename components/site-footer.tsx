@@ -16,6 +16,12 @@ export function SiteFooter() {
         ))}
       </div>
       <div className="footer-col">
+        <h4>Adopt</h4>
+        <Link href="/adopt?tab=babies">Babies to come</Link>
+        <Link href="/adopt?tab=give">Pets to give</Link>
+        <Link href="/adopt/give/new">Give a pet</Link>
+      </div>
+      <div className="footer-col">
         <h4>The journal</h4>
         <Link href="/guides">Guides</Link>
         <Link href="/threads?sort=trending">Trending threads</Link>

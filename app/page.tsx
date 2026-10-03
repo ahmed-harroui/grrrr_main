@@ -1,5 +1,7 @@
 import Link from 'next/link'
-import { ArrowBigUp, ArrowUpRight, BookOpen, Bone, ChevronRight, MessagesSquare, PawPrint, PenLine, Users } from 'lucide-react'
+import { ArrowBigUp, ArrowUpRight, BookOpen, Bone, ChevronRight, Heart, MessagesSquare, PawPrint, PenLine, Plus, Users } from 'lucide-react'
+import { ListingCard, LitterTile } from '@/components/adopt/cards'
+import { listLitters, listRehoming } from '@/lib/adopt/data'
 import { NewsletterForm } from '@/components/newsletter-form'
 import { ProductShowcase } from '@/components/product-showcase'
 import { SiteFooter } from '@/components/site-footer'
@@ -17,8 +19,10 @@ const placeholderStories = [
   { category: 'WELLBEING', title: 'A calmer, richer life for indoor cats', read: '5 min read', label: 'The everyday ritual', href: '#stories' },
 ]
 
+const ANIMAL_EMOJI: Record<string, string> = { dog: '🐶', cat: '🐱', rabbit: '🐰', rodent: '🐹', bird: '🐦', fish: '🐟', reptile: '🦎', horse: '🐴', ferret: '🦦', farm: '🐔' }
+
 function latestStories(all: Guide[]) {
-  const guides = all.slice(0, 3).map((guide) => ({ category: guide.category, title: guide.title, read: `${guide.readMinutes} min read`, label: guide.question, href: `/guides/${guide.slug}` }))
+  const guides = all.slice(0, 4).map((guide) => ({ category: `${ANIMAL_EMOJI[guide.animal ?? ''] ?? '🐾'} ${guide.category}`, title: guide.title, read: `${guide.readMinutes} min read`, label: guide.question, href: `/guides/${guide.slug}` }))
   return [...guides, ...placeholderStories.slice(guides.length)]
 }
 
@@ -29,7 +33,12 @@ async function trendingThreads() {
 }
 
 export default async function Page() {
-  const [guides, threads] = await Promise.all([getAllGuides().catch(() => [] as Guide[]), trendingThreads()])
+  const [guides, threads, litters, listings] = await Promise.all([
+    getAllGuides().catch(() => [] as Guide[]),
+    trendingThreads(),
+    listLitters(6).catch(() => []),
+    listRehoming(6).catch(() => []),
+  ])
   const stories = latestStories(guides)
   // The questions behind real guides feed the knowledge-loop animation
   const knowledgeStories = guides.filter((g) => g.question).slice(0, 8).map((g) => ({ question: g.question!.trim(), guide: g.title }))
@@ -43,6 +52,7 @@ export default async function Page() {
           <h1>Better days<br /><em>together.</em></h1>
           <p className="hero-lede">Grr is a living ecosystem for the people and animals who make life feel more like life.</p>
           <div className="hero-actions">
+            <Link className="button button-adopt" href="/adopt"><Heart size={16} /> Adopt a pet</Link>
             <a className="button button-dark" href="#ecosystem">Discover Grr <ArrowUpRight size={16} /></a>
             <a className="text-link" href="#stories">Read our stories <ChevronRight size={16} /></a>
           </div>
@@ -60,6 +70,36 @@ export default async function Page() {
 
       <section className="ticker" aria-label="Grr mission">
         <div className="ticker-track"><span>CARE DEEPLY</span><Bone size={19} /><span>LIVE CURIOUSLY</span><PawPrint size={18} /><span>STAY CLOSE</span><Bone size={19} /><span>CARE DEEPLY</span><PawPrint size={18} /></div>
+      </section>
+
+      {/* ---------- Adopt: what is live right now ---------- */}
+      <section id="adopt" className="home-adopt">
+        <div className="container">
+          <div className="adopt-section-head">
+            <div>
+              <div className="eyebrow"><span className="signal warm" /> Grr Adopt</div>
+              <h2>Every pet deserves<br /><em>a good home.</em></h2>
+            </div>
+            <div className="home-adopt-aside">
+              <p>Future babies of couples who met on GRRRR, to adopt or to buy — and pets whose owners are looking for a loving new family.</p>
+              <div className="home-adopt-stats">
+                <span><b>{litters.length}</b> litters to come</span>
+                <span><b>{listings.length}</b> pets to give</span>
+              </div>
+            </div>
+          </div>
+          <div className="home-adopt-grid">
+            {litters.slice(0, 3).map((litter) => <LitterTile key={litter.id} litter={litter} />)}
+            {listings.slice(0, Math.max(0, 6 - Math.min(litters.length, 3))).map((listing) => <ListingCard key={listing.id} listing={listing} />)}
+            {litters.length + listings.length === 0 && (
+              <div className="adopt-empty"><span>🐾</span><p>The first pets are on their way. Know one looking for a home?</p></div>
+            )}
+          </div>
+          <div className="home-adopt-actions">
+            <Link className="button button-adopt" href="/adopt">See every pet <ArrowUpRight size={16} /></Link>
+            <Link className="text-link" href="/adopt/give/new"><Plus size={14} /> Give a pet</Link>
+          </div>
+        </div>
       </section>
 
       <section id="ecosystem" className="ecosystem section container">

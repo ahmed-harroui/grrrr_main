@@ -20,7 +20,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       <section className="auth container">
         <div className="eyebrow"><span className="eyebrow-line" /> Join the Grr community</div>
         <h1>Share what you<br /><em>know and love.</em></h1>
-        <p className="auth-lede">Sign in to post threads, upvote the ones you enjoy and join the conversation.</p>
+        <p className="auth-lede">Sign in to adopt or give a pet, post threads and upvote the ones you enjoy. One account for the whole Grr family.</p>
         {error && <p className="form-error">That link didn’t work: it has expired, or was opened in another browser. Sign in with your password, or ask for a new link.</p>}
         {supabaseConfigured ? <LoginForm next={safeNext} /> : <p className="form-error">Sign-in isn’t configured yet.</p>}
       </section>
