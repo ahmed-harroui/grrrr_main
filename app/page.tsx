@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { ArrowBigUp, ArrowUpRight, BookOpen, Bone, ChevronRight, Heart, MessagesSquare, PawPrint, PenLine, Plus, Users } from 'lucide-react'
 import { ListingCard, LitterTile } from '@/components/adopt/cards'
 import { listLitters, listRehoming } from '@/lib/adopt/data'
+import { Slider } from '@/components/slider'
 import { NewsletterForm } from '@/components/newsletter-form'
 import { ProductShowcase } from '@/components/product-showcase'
 import { SiteFooter } from '@/components/site-footer'
@@ -62,14 +63,21 @@ export default async function Page() {
           <a className="hero-note" href="#knowledge"><span className="signal" /> Powered by real questions from real pet people</a>
         </div>
         <div className="hero-visual">
-          <div className="hero-image-wrap"><img src="/grr-hero-dog.png" alt="Golden retriever running through a sunny meadow" /></div>
-          <div className="hero-sticker"><PawPrint size={19} /><span>Made for<br /><strong>good company.</strong></span></div>
+          <div className="hero-image-wrap" data-parallax="0.05"><img src="/grr-hero-dog.png" alt="Golden retriever running through a sunny meadow" /></div>
+          <div className="hero-sticker-float" data-parallax="0.06"><div className="hero-sticker"><PawPrint size={19} /><span>Made for<br /><strong>good company.</strong></span></div></div>
           <div className="hero-caption">For every walk, wonder<br />and everything in between <span>↗</span></div>
         </div>
       </section>
 
-      <section className="ticker" aria-label="Grr mission">
-        <div className="ticker-track"><span>CARE DEEPLY</span><Bone size={19} /><span>LIVE CURIOUSLY</span><PawPrint size={18} /><span>STAY CLOSE</span><Bone size={19} /><span>CARE DEEPLY</span><PawPrint size={18} /></div>
+      {/* The band scrolls forever: the same words twice, moved by half its width. */}
+      <section className="ticker" aria-label="Care deeply, live curiously, stay close, adopt with love">
+        <div className="ticker-marquee" aria-hidden="true">
+          {[0, 1].map((copy) => (
+            <div className="ticker-track" key={copy}>
+              <span>CARE DEEPLY</span><Bone size={19} /><span>LIVE CURIOUSLY</span><PawPrint size={18} /><span>STAY CLOSE</span><Heart size={17} /><span>ADOPT WITH LOVE</span><Bone size={19} /><span>ASK ANYTHING</span><PawPrint size={18} />
+            </div>
+          ))}
+        </div>
       </section>
 
       {/* ---------- Adopt: what is live right now ---------- */}
@@ -83,18 +91,20 @@ export default async function Page() {
             <div className="home-adopt-aside">
               <p>Future babies of couples who met on GRRRR, to adopt or to buy — and pets whose owners are looking for a loving new family.</p>
               <div className="home-adopt-stats">
-                <span><b>{litters.length}</b> litters to come</span>
-                <span><b>{listings.length}</b> pets to give</span>
+                <span><b data-count={litters.length}>{litters.length}</b> litters to come</span>
+                <span><b data-count={listings.length}>{listings.length}</b> pets to give</span>
+                <span><b data-count={guides.length}>{guides.length}</b> guides</span>
               </div>
             </div>
           </div>
-          <div className="home-adopt-grid">
-            {litters.slice(0, 3).map((litter) => <LitterTile key={litter.id} litter={litter} />)}
-            {listings.slice(0, Math.max(0, 6 - Math.min(litters.length, 3))).map((listing) => <ListingCard key={listing.id} listing={listing} />)}
-            {litters.length + listings.length === 0 && (
-              <div className="adopt-empty"><span>🐾</span><p>The first pets are on their way. Know one looking for a home?</p></div>
-            )}
-          </div>
+          {litters.length + listings.length === 0 ? (
+            <div className="adopt-empty"><span>🐾</span><p>The first pets are on their way. Know one looking for a home?</p></div>
+          ) : (
+            <Slider label="Pets looking for a family" className="slider-adopt">
+              {litters.map((litter) => <LitterTile key={litter.id} litter={litter} />)}
+              {listings.map((listing) => <ListingCard key={listing.id} listing={listing} />)}
+            </Slider>
+          )}
           <div className="home-adopt-actions">
             <Link className="button button-adopt" href="/adopt">See every pet <ArrowUpRight size={16} /></Link>
             <Link className="text-link" href="/adopt/give/new"><Plus size={14} /> Give a pet</Link>
@@ -127,6 +137,19 @@ export default async function Page() {
       <section id="stories" className="stories section container">
         <div className="flow-rail" aria-hidden="true" />
         <div className="stories-heading"><div><div className="eyebrow"><span className="signal" /> From the Grr journal</div><h2>Useful things,<br /><em>beautifully told.</em></h2></div></div>
+        {guides.length > 0 && (
+          <Slider label="Latest guides" className="slider-guides">
+            {guides.slice(0, 12).map((guide, index) => (
+              <Link key={guide._id} href={`/guides/${guide.slug}`} className={`guide-card tone-${index % 4}`}>
+                <span className="guide-card-emoji">{ANIMAL_EMOJI[guide.animal ?? ''] ?? '🐾'}</span>
+                <span className="journal-item-meta">{guide.category} · {guide.readMinutes} min</span>
+                <strong>{guide.title}</strong>
+                <p>{guide.excerpt}</p>
+                <span className="guide-card-read">Read the guide <ArrowUpRight size={14} /></span>
+              </Link>
+            ))}
+          </Slider>
+        )}
         <div className="journal-grid">
           <div className="journal-col">
             <div className="journal-col-head"><span className="product-number">01</span><h3>Guides</h3><BookOpen size={20} /></div>
