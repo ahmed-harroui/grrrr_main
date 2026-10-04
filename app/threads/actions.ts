@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { AiDeclinedError, generateFactThread } from '@/lib/content/ai'
 import { ANIMALS, LIMITS, THREAD_CATEGORIES } from '@/lib/community/threads'
+import { adminConfigured, createAdminClient } from '@/lib/supabase/admin'
 import { createClient, getCurrentProfile } from '@/lib/supabase/server'
 
 export type FormState = { error?: string } | undefined
@@ -122,4 +123,25 @@ export async function signOut() {
   await supabase.auth.signOut()
   revalidatePath('/', 'layout')
   redirect('/')
+}
+
+/**
+ * Deletes the signed-in account for good, everywhere (the site and the apps share it): its photos
+ * and documents first, then the account, and with it its pets, matches, messages, health records,
+ * threads and listings (foreign keys).
+ */
+export async function deleteAccount(_: FormState, formData: FormData): Promise<FormState> {
+  const { supabase, userId } = await requireUser('/account')
+  if (String(formData.get('confirm') ?? '').trim().toUpperCase() !== 'DELETE') return { error: 'Type DELETE to confirm.' }
+  if (!adminConfigured()) return { error: 'Account deletion is not available right now. Try again later.' }
+  const admin = createAdminClient()
+  for (const bucket of ['pet-photos', 'pet-documents']) {
+    const { data: files } = await admin.storage.from(bucket).list(userId, { limit: 1000 })
+    if (files?.length) await admin.storage.from(bucket).remove(files.map((file) => `${userId}/${file.name}`))
+  }
+  const { error } = await admin.auth.admin.deleteUser(userId)
+  if (error) return { error: 'The account could not be deleted. Try again in a moment.' }
+  await supabase.auth.signOut()
+  revalidatePath('/', 'layout')
+  redirect('/?account=deleted')
 }

@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { ArrowUpRight, PawPrint } from 'lucide-react'
 import { signOut } from '@/app/threads/actions'
 import { ProductLinks } from '@/components/product-showcase'
+import { MobileMenu } from '@/components/mobile-menu'
 import { getCurrentProfile } from '@/lib/supabase/server'
 
 export async function SiteHeader() {
@@ -25,6 +26,7 @@ export async function SiteHeader() {
         ) : (
           <Link href="/login" className="nav-cta">Sign in <ArrowUpRight size={15} /></Link>
         )}
+        <MobileMenu signedIn={Boolean(profile)} />
       </nav>
     </header>
   )

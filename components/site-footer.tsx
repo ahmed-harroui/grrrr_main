@@ -32,6 +32,8 @@ export function SiteFooter() {
         <Link href="/#ecosystem">The ecosystem</Link>
         <Link href="/#about">Newsletter</Link>
         <Link href="/account">My account</Link>
+        <Link href="/privacy">Privacy</Link>
+        <Link href="/terms">Terms</Link>
       </div>
       <p className="footer-legal">© {new Date().getFullYear()} Great Rascals · Grr</p>
     </footer>
