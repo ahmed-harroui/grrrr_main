@@ -611,3 +611,18 @@ article.legal .guide-body li { margin-bottom: 8px; }
 article.legal .guide-body a { color: var(--coral); text-decoration: underline; }
 
 @theme inline { --color-background: var(--cream); --color-foreground: var(--ink); --color-border: var(--line); }
+
+/* ---------- phones: header, hero buttons, product previews ---------- */
+@media (max-width: 760px) {
+  /* Opaque: the page scrolling behind showed through the logo and the menu button */
+  .nav-bar { background: var(--cream); backdrop-filter: none; -webkit-backdrop-filter: none; border-bottom-color: var(--line); }
+  /* The two buttons share a row at full width; the text link takes the next one */
+  .hero-actions { flex-wrap: wrap; gap: 12px; }
+  .hero-actions .button { flex: 1 1 calc(50% - 6px); justify-content: center; white-space: nowrap; padding: 16px 12px; font-size: 13px; }
+  .hero-actions .text-link { margin-top: 8px; font-size: 13px; }
+  /* The assistant's bubble sat on the last row of the card: it goes under it */
+  .eco-preview-care { flex-direction: column; gap: 14px; }
+  .care-bubble { position: static; align-self: flex-end; margin-right: 5%; }
+  /* Nothing under 12px: small labels were hard to read */
+  .hero-note, .care-row em, .footer-legal, .footer-links, .care-bubble strong { font-size: 12px; }
+}

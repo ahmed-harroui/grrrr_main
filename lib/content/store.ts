@@ -8,14 +8,20 @@ const PUBLISHED = `!(_id in path("drafts.**"))`
 
 // ---------- website reads (published only) ----------
 
+// Some generated guides were saved with escaped characters ("shoes — your dog"): show the character itself
+const unescapeText = (text: string) => text.replace(/\\u([0-9a-fA-F]{4})/g, (_, code) => String.fromCharCode(parseInt(code, 16)))
+const readable = <G extends Guide | null>(guide: G): G =>
+  guide ? { ...guide, title: unescapeText(guide.title ?? ''), excerpt: unescapeText(guide.excerpt ?? ''), question: guide.question && unescapeText(guide.question) } : guide
+
 export async function getAllGuides(): Promise<Guide[]> {
   if (!sanityConfigured) return []
-  return readClient.fetch(`*[_type == "guide" && defined(slug.current)] | order(_createdAt desc) { ${GUIDE_FIELDS} }`)
+  const guides: Guide[] = await readClient.fetch(`*[_type == "guide" && defined(slug.current)] | order(_createdAt desc) { ${GUIDE_FIELDS} }`)
+  return guides.map(readable)
 }
 
 export async function getGuide(slug: string): Promise<Guide | null> {
   if (!sanityConfigured) return null
-  return readClient.fetch(`*[_type == "guide" && slug.current == $slug][0] { ${GUIDE_FIELDS} }`, { slug })
+  return readable(await readClient.fetch<Guide | null>(`*[_type == "guide" && slug.current == $slug][0] { ${GUIDE_FIELDS} }`, { slug }))
 }
 
 // ---------- script / API writes ----------
