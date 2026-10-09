@@ -11,7 +11,7 @@ export const PUBLISHER = {
   /** Publishing director */
   director: '',
   /** Where members write for anything about their data or these pages */
-  email: 'contact@greatrascals.com',
+  email: 'ah001dev@gmail.com',
 }
 
 export const LEGAL_UPDATED = '4 October 2026'
