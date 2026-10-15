@@ -54,6 +54,18 @@ export const viewport: Viewport = {
   ],
 }
 
+// Supabase sends Google sign-ins back to this site (the project's default address) when the app's
+// own address is not on its list: the GRRRR app's (the session after #access_token) go on to the app,
+// this site's own (?code=) to its sign-in page. Runs before anything is drawn.
+const RETURN_TO_APP = `(function () {
+  if (location.pathname !== '/') return;
+  if (/(^|[#&])(access_token|error_description)=/.test(location.hash)) {
+    location.replace('https://app.greatrascals.com/' + location.search + location.hash);
+  } else if (/[?&]code=/.test(location.search)) {
+    location.replace('https://www.greatrascals.com/auth/callback' + location.search);
+  }
+})();`
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -62,6 +74,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased">
+        <script dangerouslySetInnerHTML={{ __html: RETURN_TO_APP }} />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(ORGANIZATION) }} />
         <Motion />
         {children}
