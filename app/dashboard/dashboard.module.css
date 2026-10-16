@@ -162,3 +162,6 @@
 .modLink:hover { background: var(--soft); }
 .modLink:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 @media (max-width: 720px) { .modCard { grid-template-columns: 1fr; } .modPhoto { min-height: 260px; } }
+.modWords { margin: 0; font-size: 13px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.modWords mark { background: #FEE2E2; color: #B91C1C; font-weight: 700; padding: 1px 8px; border-radius: 6px; }
+.ideas button.modSuggested { border-color: #DC2626; color: #B91C1C; font-weight: 700; }

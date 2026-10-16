@@ -64,8 +64,10 @@ export default async function ModerationPage({ searchParams }: { searchParams: P
         )}
 
         <p className={styles.footer}>
-          « À revoir » : les profils modifiés après avoir été masqués, et ceux dont le nom, la description ou la race contient un mot signalé
-          (table moderation_words : prénoms de personnes, insultes). Raccourcis : ← → pour passer d’un profil à l’autre.
+          Détection automatique : insultes (français, anglais, darija), prénoms de personnes, nom du propriétaire, coordonnées ou liens,
+          faux noms (test, lettres répétées), photo d’exemple, profil vide. « À revoir » : les profils suspects et ceux modifiés après un
+          masquage ; « Tous » : tous les profils, du plus suspect au moins suspect. Mots modifiables dans la table moderation_words.
+          Raccourcis : ← → pour passer d’un profil à l’autre.
         </p>
       </div>
     </main>

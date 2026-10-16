@@ -24,6 +24,10 @@ export type QueuePet = {
   bannedReason: string | null
   reviewRequestedAt: string | null
   flagged: boolean
+  reasons: string[]
+  score: number
+  words: string[]
+  suggested: BanReason | null
 }
 
 // What happened to each profile during this visit (the list itself does not reload)
@@ -41,6 +45,18 @@ const REASONS: { key: BanReason; label: string }[] = [
   { key: 'other', label: 'Autre règle' },
 ]
 const REASON_LABEL: Record<string, string> = Object.fromEntries(REASONS.map((r) => [r.key, r.label]))
+
+// What the automatic check found (GRRRR migration 031): the strong ones put the profile in "À revoir"
+const DETECTED: Record<string, { label: string; strong: boolean }> = {
+  insult: { label: 'Insulte ou mot déplacé', strong: true },
+  person_name: { label: 'Prénom d’une personne', strong: true },
+  owner_name: { label: 'Porte le nom de son propriétaire', strong: true },
+  contact: { label: 'Coordonnées ou lien dans le texte', strong: true },
+  fake_name: { label: 'Faux nom (test, clavier)', strong: true },
+  example_photo: { label: 'Photo d’exemple de l’app', strong: false },
+  no_photo: { label: 'Sans photo', strong: false },
+  no_bio: { label: 'Sans description', strong: false },
+}
 
 const SPECIES: Record<string, string> = {
   dog: '🐶 Chien', cat: '🐱 Chat', rabbit: '🐰 Lapin', bird: '🐦 Oiseau', hamster: '🐹 Hamster', horse: '🐴 Cheval',
@@ -145,7 +161,9 @@ export function Slider({ pets, mode }: { pets: QueuePet[]; mode: string }) {
 
         <div className={styles.modBody}>
           <div className={styles.modBadges}>
-            {pet.flagged && <span className={styles.modFlag}>Mot signalé</span>}
+            {(pet.reasons ?? []).map((r) => (
+              <span key={r} className={DETECTED[r]?.strong ? styles.modFlag : styles.modInfo}>{DETECTED[r]?.label ?? r}</span>
+            ))}
             {pet.reviewRequestedAt && <span className={styles.modReview}>Modifié après masquage · {day(pet.reviewRequestedAt)}</span>}
             {pet.bannedAt && state?.kind !== 'shown' && <span className={styles.modBan}>Masqué le {day(pet.bannedAt)} · {REASON_LABEL[pet.bannedReason ?? ''] ?? pet.bannedReason}</span>}
             {pet.adopterOnly && <span className={styles.modInfo}>Profil adoptant</span>}
@@ -156,6 +174,7 @@ export function Slider({ pets, mode }: { pets: QueuePet[]; mode: string }) {
               .filter(Boolean)
               .join(' · ')}
           </p>
+          {pet.words?.length > 0 && <p className={styles.modWords}>Mots trouvés : {pet.words.map((w) => <mark key={w}>{w}</mark>)}</p>}
           <p className={styles.modBio}>{pet.bio?.trim() || <em>Pas de description.</em>}</p>
           {pet.tags && pet.tags.length > 0 && (
             <div className={styles.facts}>{pet.tags.map((t) => <span key={t}>{t}</span>)}</div>
@@ -182,7 +201,9 @@ export function Slider({ pets, mode }: { pets: QueuePet[]; mode: string }) {
               <span className={styles.subhead}>Pourquoi ? Le propriétaire reçoit ce motif dans son message.</span>
               <div className={styles.ideas}>
                 {REASONS.map((r) => (
-                  <button key={r.key} type="button" onClick={() => void ban(r.key)}>{r.label}</button>
+                  <button key={r.key} type="button" onClick={() => void ban(r.key)} className={r.key === pet.suggested ? styles.modSuggested : undefined}>
+                    {r.label}{r.key === pet.suggested && ' · suggéré'}
+                  </button>
                 ))}
               </div>
             </div>
