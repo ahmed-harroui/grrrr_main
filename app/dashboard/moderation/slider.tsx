@@ -152,7 +152,7 @@ export function Slider({ pets, mode }: { pets: QueuePet[]; mode: string }) {
           </div>
           <h2 className={styles.modName}>{pet.name || <em>Sans nom</em>}</h2>
           <p className={styles.modMeta}>
-            {[SPECIES[pet.species ?? ''] ?? pet.species, pet.breed, pet.age != null ? `${pet.age} an${pet.age > 1 ? 's' : ''}` : null, pet.gender === 'M' ? 'Mâle' : pet.gender === 'F' ? 'Femelle' : null, pet.city]
+            {[SPECIES[pet.species ?? ''] ?? pet.species, pet.breed, pet.age != null ? (pet.age < 1 ? 'moins d’un an' : `${pet.age} an${pet.age > 1 ? 's' : ''}`) : null, pet.gender === 'M' ? 'Mâle' : pet.gender === 'F' ? 'Femelle' : null, pet.city]
               .filter(Boolean)
               .join(' · ')}
           </p>
