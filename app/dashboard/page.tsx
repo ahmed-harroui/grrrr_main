@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { adminConfigured, createAdminClient } from '@/lib/supabase/admin'
 import { getCurrentProfile } from '@/lib/supabase/server'
+import { Analyst } from './analyst'
 import styles from './dashboard.module.css'
 
 // The admins' view of the whole ecosystem: what people do in GRRRR, GRRR Care, the store and with
@@ -11,6 +12,9 @@ import styles from './dashboard.module.css'
 
 export const dynamic = 'force-dynamic' // depends on who is signed in, and always fresh
 export const metadata: Metadata = { title: 'Tableau de bord — Grr', robots: { index: false, follow: false } }
+
+type Alert = { level: 'critical' | 'warning' | 'info'; key: string; title: string; detail: string }
+const ALERT_LABEL = { critical: 'À réparer', warning: 'À regarder', info: 'Bon à savoir' } as const
 
 type Series = number[]
 type Labelled = { label: string; value: number }
@@ -126,7 +130,10 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   if (!adminConfigured()) {
     return <main className={styles.page}><p className={styles.empty}>Le serveur n’a pas encore sa clé Supabase (SUPABASE_SECRET_KEY) : le tableau de bord ne peut pas lire les chiffres.</p></main>
   }
-  const { data, error } = await createAdminClient().rpc('admin_dashboard', { p_days: days })
+  const db = createAdminClient()
+  const [{ data, error }, { data: alertData }] = await Promise.all([db.rpc('admin_dashboard', { p_days: days }), db.rpc('admin_alerts')])
+  const order = { critical: 0, warning: 1, info: 2 }
+  const alerts = ((alertData ?? []) as Alert[]).sort((a, b) => order[a.level] - order[b.level])
   if (error || !data) {
     return <main className={styles.page}><p className={styles.empty}>Les chiffres n’ont pas pu être lus : {error?.message ?? 'réponse vide'}.</p></main>
   }
@@ -152,6 +159,21 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           </nav>
         </header>
 
+        {/* What needs attention, found in the data (Care migration 028); also emailed each morning */}
+        <section className={styles.alerts} aria-label="Alertes">
+          {alerts.length === 0 ? (
+            <p className={styles.allGood}>✓ Rien à signaler : aucune alerte dans les données.</p>
+          ) : (
+            alerts.map((alert) => (
+              <div key={alert.key} className={`${styles.alert} ${styles[alert.level]}`}>
+                <span className={styles.alertLevel}>{ALERT_LABEL[alert.level]}</span>
+                <strong>{alert.title}</strong>
+                <span>{alert.detail}</span>
+              </div>
+            ))
+          )}
+        </section>
+
         {/* What matters first */}
         <div className={styles.kpis}>
           <Metric label="Comptes" total={d.accounts.total} series={d.accounts.new} color="#5B6472" />
@@ -161,6 +183,10 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         </div>
 
         <div className={styles.grid}>
+          <Section logo="/dashboard/grr.png" title="Analyste" subtitle="Pose une question sur tes données : Claude interroge la base (sans données personnelles) et te répond chiffres à l’appui" color="#1C2027" wide>
+            <Analyst />
+          </Section>
+
           <Section logo="/dashboard/grr.png" title="Du compte à la conversation" subtitle="Combien passent chaque étape" color="#5B6472" wide>
             <ol className={styles.funnel}>
               {d.accounts.funnel.map((step, i) => (
