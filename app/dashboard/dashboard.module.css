@@ -123,3 +123,42 @@
 .ideas button { border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 999px; padding: 8px 14px; font-size: 13px; cursor: pointer; text-align: left; }
 .ideas button:hover { background: var(--soft); }
 .askButton:focus-visible, .clear:focus-visible, .ideas button:focus-visible, .query summary:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+/* Moderation: one profile at a time */
+.modWrap { display: grid; gap: 12px; max-width: 880px; width: 100%; margin: 0 auto; }
+.modBar { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.modCount { font-weight: 800; font-variant-numeric: tabular-nums; }
+.modCount em { font-style: normal; font-weight: 600; color: var(--muted); }
+.modCard { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); background: var(--surface); border: 1px solid var(--line); border-radius: 22px; overflow: hidden; border-top: 4px solid #E8457A; }
+.modCardBanned { border-top-color: #DC2626; }
+.modPhoto { position: relative; background: var(--soft); min-height: 340px; display: grid; place-items: center; }
+.modPhoto img { width: 100%; height: 100%; max-height: 520px; object-fit: contain; display: block; }
+.modNoPhoto { color: var(--muted); font-weight: 700; font-size: 14px; }
+.modDots { position: absolute; bottom: 10px; left: 0; right: 0; display: flex; justify-content: center; gap: 6px; }
+.modDots button { width: 9px; height: 9px; border-radius: 50%; border: 0; background: #FFFFFF; opacity: 0.55; cursor: pointer; padding: 0; box-shadow: 0 0 0 1px rgba(0,0,0,0.15); }
+.modDots button[aria-pressed='true'] { opacity: 1; }
+.modStamp { position: absolute; top: 14px; left: 14px; background: #DC2626; color: #FFFFFF; font-weight: 800; font-size: 12px; letter-spacing: 0.6px; text-transform: uppercase; padding: 5px 10px; border-radius: 999px; }
+.modBody { padding: 20px; display: grid; gap: 12px; align-content: start; min-width: 0; }
+.modBadges { display: flex; flex-wrap: wrap; gap: 6px; }
+.modBadges span { font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; }
+.modFlag { background: #FEF3C7; color: #92400E; }
+.modReview { background: #DBEAFE; color: #1E40AF; }
+.modBan { background: #FEE2E2; color: #B91C1C; }
+.modInfo { background: var(--soft); color: var(--muted); }
+.modName { margin: 0; font-size: 30px; font-weight: 800; letter-spacing: -0.8px; line-height: 1.1; overflow-wrap: anywhere; }
+.modMeta { margin: 0; color: var(--muted); font-size: 14px; }
+.modBio { margin: 0; font-size: 15px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
+.modOwner { margin: 0; font-size: 12px; color: var(--muted); }
+.modActions { display: flex; flex-wrap: wrap; gap: 10px; padding-top: 4px; }
+.modBanButton { border: 0; background: #DC2626; color: #FFFFFF; font-weight: 800; font-size: 14px; padding: 11px 20px; border-radius: 999px; cursor: pointer; }
+.modBanButton:disabled { opacity: 0.45; cursor: default; }
+.modBanButton:focus-visible, .modDots button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.modReasons { display: grid; gap: 10px; background: var(--soft); border-radius: 14px; padding: 12px; }
+.modReasons .subhead { margin: 0; }
+.modResult { display: grid; gap: 4px; }
+.modOk { margin: 0; font-size: 14px; font-weight: 700; color: var(--up); }
+.modLink { display: inline-flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 7px 14px; font-size: 13px; font-weight: 700; color: var(--ink); }
+.modLink strong { background: #DC2626; color: #FFFFFF; border-radius: 999px; padding: 1px 8px; font-size: 12px; }
+.modLink:hover { background: var(--soft); }
+.modLink:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+@media (max-width: 720px) { .modCard { grid-template-columns: 1fr; } .modPhoto { min-height: 260px; } }

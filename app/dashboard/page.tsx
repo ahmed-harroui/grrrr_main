@@ -131,7 +131,12 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     return <main className={styles.page}><p className={styles.empty}>Le serveur n’a pas encore sa clé Supabase (SUPABASE_SECRET_KEY) : le tableau de bord ne peut pas lire les chiffres.</p></main>
   }
   const db = createAdminClient()
-  const [{ data, error }, { data: alertData }] = await Promise.all([db.rpc('admin_dashboard', { p_days: days }), db.rpc('admin_alerts')])
+  const [{ data, error }, { data: alertData }, { data: reviewData }] = await Promise.all([
+    db.rpc('admin_dashboard', { p_days: days }),
+    db.rpc('admin_alerts'),
+    db.rpc('admin_pet_queue', { p_mode: 'review', p_limit: 300 }),
+  ])
+  const toReview = Array.isArray(reviewData) ? reviewData.length : 0
   const order = { critical: 0, warning: 1, info: 2 }
   const alerts = ((alertData ?? []) as Alert[]).sort((a, b) => order[a.level] - order[b.level])
   if (error || !data) {
@@ -152,6 +157,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
             <h1>Tableau de bord</h1>
             <p className={styles.lede}>GRRRR, GRRR Care, la boutique et les partenaires, d’après ce que les apps enregistrent. Mis à jour le {updated}.</p>
           </div>
+          <Link href="/dashboard/moderation" className={styles.modLink}>🛡️ Modération des profils{toReview > 0 && <strong>{toReview} à revoir</strong>}</Link>
           <nav className={styles.periods} aria-label="Période">
             {PERIODS.map((p) => (
               <Link key={p} href={`/dashboard?jours=${p}`} className={p === days ? styles.periodOn : styles.period} aria-current={p === days ? 'page' : undefined}>{p} jours</Link>
